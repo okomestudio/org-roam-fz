@@ -140,7 +140,7 @@ For example, \"12.1a\" will be split to '(\"a\" \"1\" \"12.\")."
 
 (defun org-roam-fz-fid--exists (fid)
   "Return non-nil if FID already exists in the org-roam database."
-  (org-roam-id-find (org-roam-fz-fid--render fid)))
+  (org-roam-id-find (org-roam-fz-fid--render fid 'full)))
 
 (defun org-roam-fz-fid--render (fid &optional mode)
   "Render FID fully as string in the render MODE.

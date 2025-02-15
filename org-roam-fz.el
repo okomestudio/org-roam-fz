@@ -53,6 +53,55 @@ This is a function that takes a single string argument ID."
   :type 'function
   :group 'org-roam)
 
+(defcustom org-roam-fz-capture-template-follow-up-template
+  (lambda ()
+    (let* ((node (org-roam-node-from-id (org-roam-fz-fid)))
+           (fid (org-roam-node-id node))
+           (desc (org-roam-node-title node)))
+      (concat "%?\n"
+              "--------\n"
+              "- Previous: [[id:" fid "][" desc "]]\n"
+              "--------\n"
+              "- See ... for ...")))
+  "Template string or function for the follow-up note capture template."
+  :type '(choice function string)
+  :group 'org-roam)
+
+(defcustom org-roam-fz-capture-template-follow-up-file
+  "%(org-roam-fz-zk)/%(org-roam-fz-fid-follow-up)/${slug}.org"
+  "Filename for the follow-up note capture template."
+  :type 'string
+  :group 'org-roam)
+
+(defcustom org-roam-fz-capture-template-follow-up-header
+  (concat ":PROPERTIES:\n"
+          ":ID: %(org-roam-fz-fid)\n"
+          ":END:\n"
+          "#+title: ${title}\n\n")
+  "Header for the follow-up note capture template."
+  :type 'string
+  :group 'org-roam)
+
+(defcustom org-roam-fz-capture-template-new-template "%?\n"
+  "Template string or function for the new-topic note capture template."
+  :type '(choice function string)
+  :group 'org-roam)
+
+(defcustom org-roam-fz-capture-template-new-file
+  "%(org-roam-fz-zk)/%(org-roam-fz-fid-prompt)/${slug}.org"
+  "Filename for the new-topic note capture template."
+  :type 'string
+  :group 'org-roam)
+
+(defcustom org-roam-fz-capture-template-new-header
+  (concat ":PROPERTIES:\n"
+          ":ID: %(org-roam-fz-fid)\n"
+          ":END:\n"
+          "#+title: ${title}\n\n")
+  "Header for the new-topic note capture template."
+  :type 'string
+  :group 'org-roam)
+
 ;;; Structures
 
 (cl-defstruct
@@ -272,6 +321,36 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
         (setq fid (org-roam-fz-fid--sibling-inc fid)))
       (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
       (org-roam-fz-fid--render fid render-mode))))
+
+(defun org-roam-fz-capture-template-follow-up (keys description &rest rest)
+  "Get the capture template for the follow-up note.
+KEYS and DESCRIPTION are string. REST items are spliced at the end. Use
+custom variables `org-roam-fz-capture-template-*' to control output."
+  `(,keys
+    ,description
+    plain
+    ,(if (functionp org-roam-fz-capture-template-follow-up-template)
+         `(function ,org-roam-fz-capture-template-follow-up-template)
+       org-roam-fz-capture-template-follow-up-template)
+    :target (file+head ,org-roam-fz-capture-template-follow-up-file
+                       ,org-roam-fz-capture-template-follow-up-header)
+    :unnarrowed t
+    ,@rest))
+
+(defun org-roam-fz-capture-template-new (keys description &rest rest)
+  "Get the capture template for the new topic note.
+KEYS and DESCRIPTION are string. REST items are spliced at the end. Use
+custom variables `org-roam-fz-capture-template-*' to control output."
+  `(,keys
+    ,description
+    plain
+    ,(if (functionp org-roam-fz-capture-template-new-template)
+         `(function ,org-roam-fz-capture-template-new-template)
+       org-roam-fz-capture-template-new-template)
+    :target (file+head ,org-roam-fz-capture-template-new-file
+                       ,org-roam-fz-capture-template-new-header)
+    :unnarrowed t
+    ,@rest))
 
 ;;; Define minor mode
 

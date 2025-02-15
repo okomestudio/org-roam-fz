@@ -98,4 +98,38 @@
        (expect (org-roam-fz-fid-follow-up 'full)
                :to-equal (concat alnum "-" org-roam-fz-zk)))))
 
+(describe
+ "org-roam-fz-capture-template-follow-up"
+ :var* ((keys "f")
+        (description "note for a follow-up topic")
+        (template (lambda () "template"))
+        (file "file")
+        (header "header")
+        (expected `(,keys ,description plain (function ,template)
+                          :target (file+head ,file ,header)
+                          :unnarrowed t)))
+ (it "renders a follow-up note template from custom variables"
+     (setopt org-roam-fz-capture-template-follow-up-template template
+             org-roam-fz-capture-template-follow-up-file file
+             org-roam-fz-capture-template-follow-up-header header)
+     (expect (org-roam-fz-capture-template-follow-up keys description)
+             :to-equal expected)))
+
+(describe
+ "org-roam-fz-capture-template-new"
+ :var* ((keys "n")
+        (description "note for a new topic")
+        (template "template")
+        (file "file")
+        (header "header")
+        (expected `(,keys ,description plain ,template
+                          :target (file+head ,file ,header)
+                          :unnarrowed t)))
+ (it "renders a new template from custom variables"
+     (setopt org-roam-fz-capture-template-new-template template
+             org-roam-fz-capture-template-new-file file
+             org-roam-fz-capture-template-new-header header)
+     (expect (org-roam-fz-capture-template-new keys description)
+             :to-equal expected)))
+
 ;;; test-org-fz.el ends here

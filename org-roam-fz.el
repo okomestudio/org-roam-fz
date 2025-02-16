@@ -82,7 +82,7 @@ This is a function that takes a single string argument ID."
   :type 'string
   :group 'org-roam)
 
-(defcustom org-roam-fz-capture-template-new-template "%?\n"
+(defcustom org-roam-fz-capture-template-new-template "%?\n--------\n- See ... for ..."
   "Template string or function for the new-topic note capture template."
   :type '(choice function string)
   :group 'org-roam)

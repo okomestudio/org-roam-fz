@@ -34,6 +34,15 @@
              :to-throw 'error)))
 
 (describe
+ "org-roam-fz-fid--exists"
+ (it "returns non-nil when fID exists"
+     (expect (org-roam-fz-fid--exists
+              (org-roam-fz-fid-make (format "1.1-%s" org-roam-fz-zk)))
+             :not :to-equal nil))
+ (it "returns nil when fID does not exist"
+     (expect (org-roam-fz-fid--exists
+              (org-roam-fz-fid-make (format "99.1-%s" org-roam-fz-zk)))
+             :to-equal nil)))
 
 (describe
  "org-roam-fz-fid--alnum-inc"

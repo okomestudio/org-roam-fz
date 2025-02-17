@@ -45,6 +45,16 @@
              :to-equal nil)))
 
 (describe
+ "org-roam-fz-fid--render"
+ :var ((fid (org-roam-fz-fid-make "12.3a-zk")))
+ (it "renders an fID in all modes"
+     (expect (org-roam-fz-fid--render fid 'alnum) :to-equal "12.3a")
+     (expect (org-roam-fz-fid--render fid 'zk) :to-equal "zk")
+     (expect (org-roam-fz-fid--render fid 'full) :to-equal "12.3a-zk"))
+ (it "throws an error for an unrecognized mode"
+     (expect (org-roam-fz-fid--render fid 'unknown) :to-throw 'error)))
+
+(describe
  "org-roam-fz-fid--alnum-inc"
  (it "increments alphanumeric ID component"
      (expect (org-roam-fz-fid--alnum-inc "19") :to-equal "20")

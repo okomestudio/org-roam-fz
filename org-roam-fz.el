@@ -322,6 +322,17 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
     (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
     (org-roam-fz-fid--render fid render-mode)))
 
+(defun org-roam-fz-fid-new (&optional render-mode)
+  "Render the fID for a new-topic zettel.
+See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
+  (let ((render-mode (or render-mode 'alnum))
+        (fid (org-roam-fz-fid-make (format "1.1-%s" org-roam-fz-zk))))
+    (while (org-roam-fz-fid--exists fid)
+      (setq fid (org-roam-fz-fid--msd-inc fid)))
+    (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
+    (org-roam-fz-fid--render fid render-mode)))
+
+(defun org-roam-fz-fid-related (&optional render-mode)
 (defun org-roam-fz-fid-follow-up (&optional render-mode)
   "Render the fID for a follow up zettel.
 See `org-roam-fz-fid--render' for the available values for RENDER-MODE."

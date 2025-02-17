@@ -104,6 +104,16 @@
                :to-equal (concat alnum "-" org-roam-fz-zk)))))
 
 (describe
+ "org-roam-fz-fid-new"
+ :var* (;; the fID "1.1" exists, so MSD will be incremented
+        (expected (org-roam-fz-fid-make "2.1-zk")))
+ (dolist (mode '('alnum 'zk 'full))
+   (it "renders the MODE of the new-topic fID"
+       (expect (org-roam-fz-fid-new mode)
+               :to-equal (org-roam-fz-fid--render expected mode)))))
+
+(describe
+(describe
  "org-roam-fz-fid-follow-up"
  :var* ((org-roam-db-location "roam-test.db")
         (org-roam-directory "/tmp")

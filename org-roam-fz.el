@@ -156,7 +156,8 @@ MODE is one of the following symbols:
   (pcase (or mode 'alnum)
     ('alnum (org-roam-fz-fid-alnum fid))
     ('zk (org-roam-fz-fid-zk fid))
-    ('full (concat (org-roam-fz-fid-alnum fid) "-" (org-roam-fz-fid-zk fid)))))
+    ('full (concat (org-roam-fz-fid-alnum fid) "-" (org-roam-fz-fid-zk fid)))
+    (_ (error "Invalid render mode (%s)" mode))))
 
 (defun org-roam-fz-fid--alnum-inc (alnum-part)
   "Increment the fID component ALNUM-PART by one.

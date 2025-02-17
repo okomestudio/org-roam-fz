@@ -195,6 +195,15 @@ Incrementing the LSD of an fID means 12.4 becomes 12.5, for example."
     (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
     fid))
 
+(defun org-roam-fz-fid--msd-inc (fid)
+  "Increment the most-significant digit of FID by one.
+Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
+  (let* ((comps (org-roam-fz-fid--split-alnum (org-roam-fz-fid-alnum fid)))
+         (n (1- (length comps))))
+    (setcar (nthcdr n comps) (org-roam-fz-fid--alnum-inc (nth n comps)))
+    (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
+    fid))
+
 ;;; Overlays
 
 (defun org-roam-fz-overlays-render-fid-default (fid)

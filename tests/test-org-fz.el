@@ -79,6 +79,19 @@
           :to-equal (org-roam-fz-fid-make expected))))))
 
 (describe
+ "org-roam-fz-fid--msd-inc"
+ (it "increments the MSD of fID by one"
+     (dolist (try '(("12-default" "13-default")
+                    ("12.3-default" "13.3-default")
+                    ("123ab4c5d-default" "124ab4c5d-default")
+                    ("123ab4c5-default" "124ab4c5-default")))
+       (cl-destructuring-bind
+           (input expected) try
+         (expect
+          (org-roam-fz-fid--msd-inc (org-roam-fz-fid-make input))
+          :to-equal (org-roam-fz-fid-make expected))))))
+
+(describe
  "org-roam-fz-fid-prompt"
  :var* ((alnum "12.1a"))
  (it "renders fID from user input"

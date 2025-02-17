@@ -122,17 +122,21 @@ This is a function that takes a single string argument ID."
 
 (defun org-roam-fz-fid--split-alnum (alnum)
   "Split ALNUM to the alternating alpha-numeric components.
-For example, \"12.1a\" will be split to '(\"a\" \"1\" \"12.\")."
+For example, \"12.1a\" will be split to '(\"a\" \"1\" \".\" \"12\")."
   (let ((subs alnum) pos part parts)
-    (setq pos (string-match "^\\([0-9]+\\.\\)" subs))
+    ;; MSD and comma get a special treatment.
+    (setq pos (string-match "^\\([0-9]+\\)\\." subs))
     (when pos
       (setq part (match-string 1 subs))
       (push part parts)
-      (setq subs (substring subs (length part))))
+      (push "." parts)
+      (setq subs (substring subs (1+ (length part)))))
+
+    ;; The rest are alternating alphanumeric components.
     (while (> (length subs) 0)
       (setq pos (string-match "^\\([0-9]+\\|[a-z]+\\)" subs))
       (if (null pos)
-          (error "Malformatted FID (%s)" s))
+          (error "Malformatted FID (%s)" alnum))
       (setq part (match-string 1 subs))
       (push part parts)
       (setq subs (substring subs (length part))))

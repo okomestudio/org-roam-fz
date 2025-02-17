@@ -20,6 +20,19 @@
  "org-roam-fz-fid-new"
  (it "fails to create fID from a malformatted ID"
      (expect (org-roam-fz-fid-new "#%#") :to-throw 'error)))
+(describe
+ "org-roam-fz-fid--split-alnum"
+ (it "splits fID string into components"
+     (expect (org-roam-fz-fid--split-alnum "12.2a")
+             :to-equal '("a" "2" "." "12")))
+ (it "splits fID string without the comma component into components"
+     (expect (org-roam-fz-fid--split-alnum "2a3c")
+             :to-equal '("c" "3" "a" "2")))
+ (it "throws an error on invalid fID string"
+     (expect (org-roam-fz-fid--split-alnum "@5*2a3c")
+             :to-throw 'error)))
+
+(describe
 
 (describe
  "org-roam-fz-fid--alnum-inc"

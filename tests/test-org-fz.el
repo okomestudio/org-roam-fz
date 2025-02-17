@@ -68,8 +68,9 @@
 
 (describe
  "org-roam-fz-fid--lsd-inc"
- (it "adds a sibling to fID"
-     (dolist (try '(("12.3-default" "12.4-default")
+ (it "increments the LSD of fID by one"
+     (dolist (try '(("12-default" "13-default")
+                    ("12.3-default" "12.4-default")
                     ("123ab4c5d-default" "123ab4c5e-default")
                     ("123ab4c5-default" "123ab4c6-default")))
        (cl-destructuring-bind

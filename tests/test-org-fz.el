@@ -55,7 +55,7 @@
      (expect (org-roam-fz-fid--alnum-inc "zzz") :to-equal "aaaa")))
 
 (describe
- "org-roam-fz-fid--child-add"
+ "org-roam-fz-fid--lsd-add"
  (it "adds a child to fID"
      (dolist (try '(("12.3-default" "12.3a-default")
                     ("123ab4c5d-default" "123ab4c5d1-default")
@@ -63,7 +63,7 @@
        (cl-destructuring-bind
            (input expected) try
          (expect
-          (org-roam-fz-fid--child-add (org-roam-fz-fid-make input))
+          (org-roam-fz-fid--lsd-add (org-roam-fz-fid-make input))
           :to-equal (org-roam-fz-fid-make expected))))))
 
 (describe

@@ -179,9 +179,9 @@ it becomes 'aa'; then 'ab', 'ac', ..., etc."
         (setq n (/ n base)))
       (concat digits))))
 
-(defun org-roam-fz-fid--child-add (fid)
-  "Add a child component to FID.
-Adding a child to an fID means 12.4 becomes 12.4a, for example."
+(defun org-roam-fz-fid--lsd-add (fid)
+  "Add an least-significant digit component to FID.
+Adding an LSD component to an fID means 12.4 becomes 12.4a, for example."
   (let ((comps (org-roam-fz-fid--split-alnum (org-roam-fz-fid-alnum fid))))
     (push (if (string-match "[[:digit:]]+" (nth 0 comps)) "a" "1") comps)
     (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
@@ -320,9 +320,9 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
       (org-roam-fz-fid-prompt render-mode)
     (let ((render-mode (or render-mode 'alnum))
           (fid (org-roam-fz-fid-make org-roam-fz--id)))
-      (setq fid (org-roam-fz-fid--child-add fid))
+      (setq fid (org-roam-fz-fid--lsd-add fid))
       (while (org-roam-fz-fid--exists fid)
-        (setq fid (org-roam-fz-fid--sibling-inc fid)))
+        (setq fid (org-roam-fz-fid--lsd-inc fid)))
       (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
       (org-roam-fz-fid--render fid render-mode))))
 

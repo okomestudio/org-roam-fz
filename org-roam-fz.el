@@ -335,7 +335,7 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
 
 (defun org-roam-fz-fid-related (&optional render-mode)
 (defun org-roam-fz-fid-follow-up (&optional render-mode)
-  "Render the fID for a follow up zettel.
+  "Render the fID for a follow-up topic zettel.
 See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
   (if (not (and (boundp 'org-roam-fz--id) org-roam-fz--id))
       (org-roam-fz-fid-prompt render-mode)

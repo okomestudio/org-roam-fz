@@ -106,7 +106,7 @@ This is a function that takes a single string argument ID."
 
 (cl-defstruct
     (org-roam-fz-fid
-     (:constructor org-roam-fz-fid-new
+     (:constructor org-roam-fz-fid-make
                    (id &aux
                        (parts (let ((parts (split-string id "-")))
                                 (if (not (= (length parts) 2))
@@ -207,7 +207,7 @@ Incrementing the sibling of an fID means 12.4 becomes 12.5, for example."
 
 (defun org-roam-fz-overlays--format (id)
   "Format ID overlay."
-  (let* ((fid (ignore-errors (org-roam-fz-fid-new id)))
+  (let* ((fid (ignore-errors (org-roam-fz-fid-make id)))
          (rendered (if fid
                        (when org-roam-fz-overlays-render-fid
                          (funcall org-roam-fz-overlays-render-fid fid))
@@ -306,7 +306,7 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
         fid input)
     (while (null fid)
       (setq input (read-string prompt))
-      (setq fid (org-roam-fz-fid-new (format "%s-%s" input org-roam-fz-zk)))
+      (setq fid (org-roam-fz-fid-make (format "%s-%s" input org-roam-fz-zk)))
       (if (org-roam-fz-fid--exists fid)
           (setq prompt (format "('%s' is taken) Folgezettel ID: " input)
                 fid nil)))
@@ -319,7 +319,7 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
   (if (not (and (boundp 'org-roam-fz--id) org-roam-fz--id))
       (org-roam-fz-fid-prompt render-mode)
     (let ((render-mode (or render-mode 'alnum))
-          (fid (org-roam-fz-fid-new org-roam-fz--id)))
+          (fid (org-roam-fz-fid-make org-roam-fz--id)))
       (setq fid (org-roam-fz-fid--child-add fid))
       (while (org-roam-fz-fid--exists fid)
         (setq fid (org-roam-fz-fid--sibling-inc fid)))

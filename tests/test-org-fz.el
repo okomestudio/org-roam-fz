@@ -10,16 +10,17 @@
 (require 'cl)
 
 (describe
- "org-roam-fz-fid-new"
- :var ((fid (org-roam-fz-fid-new "12.3ab4-default")))
+ "org-roam-fz-fid-make"
+ :var ((fid (org-roam-fz-fid-make "12.3ab4-default")))
  (it "creates Folgezettel ID object"
      (expect (org-roam-fz-fid-alnum fid) :to-equal "12.3ab4")
      (expect (org-roam-fz-fid-zk fid) :to-equal "default")))
 
 (describe
- "org-roam-fz-fid-new"
+ "org-roam-fz-fid-make"
  (it "fails to create fID from a malformatted ID"
-     (expect (org-roam-fz-fid-new "#%#") :to-throw 'error)))
+     (expect (org-roam-fz-fid-make "#%#") :to-throw 'error)))
+
 (describe
  "org-roam-fz-fid--split-alnum"
  (it "splits fID string into components"
@@ -53,8 +54,8 @@
        (cl-destructuring-bind
            (input expected) try
          (expect
-          (org-roam-fz-fid--child-add (org-roam-fz-fid-new input))
-          :to-equal (org-roam-fz-fid-new expected))))))
+          (org-roam-fz-fid--child-add (org-roam-fz-fid-make input))
+          :to-equal (org-roam-fz-fid-make expected))))))
 
 (describe
  "org-roam-fz-fid--sibling-inc"
@@ -65,14 +66,12 @@
        (cl-destructuring-bind
            (input expected) try
          (expect
-          (org-roam-fz-fid--sibling-inc (org-roam-fz-fid-new input))
-          :to-equal (org-roam-fz-fid-new expected))))))
+          (org-roam-fz-fid--sibling-inc (org-roam-fz-fid-make input))
+          :to-equal (org-roam-fz-fid-make expected))))))
 
 (describe
  "org-roam-fz-fid-prompt"
- :var* ((org-roam-db-location "roam-test.db")
-        (alnum "12.1a")
-        (org-roam-fz-zk "zk"))
+ :var* ((alnum "12.1a"))
  (it "renders fID from user input"
      (cl-letf (((symbol-function 'read-string) (lambda (s) alnum)))
        (expect (org-roam-fz-fid-prompt 'alnum)

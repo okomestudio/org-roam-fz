@@ -67,7 +67,7 @@
           :to-equal (org-roam-fz-fid-make expected))))))
 
 (describe
- "org-roam-fz-fid--sibling-inc"
+ "org-roam-fz-fid--lsd-inc"
  (it "adds a sibling to fID"
      (dolist (try '(("12.3-default" "12.4-default")
                     ("123ab4c5d-default" "123ab4c5e-default")
@@ -75,7 +75,7 @@
        (cl-destructuring-bind
            (input expected) try
          (expect
-          (org-roam-fz-fid--sibling-inc (org-roam-fz-fid-make input))
+          (org-roam-fz-fid--lsd-inc (org-roam-fz-fid-make input))
           :to-equal (org-roam-fz-fid-make expected))))))
 
 (describe

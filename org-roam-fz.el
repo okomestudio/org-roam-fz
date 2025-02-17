@@ -187,9 +187,9 @@ Adding a child to an fID means 12.4 becomes 12.4a, for example."
     (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
     fid))
 
-(defun org-roam-fz-fid--sibling-inc (fid)
-  "Increment the sibling of FID by one.
-Incrementing the sibling of an fID means 12.4 becomes 12.5, for example."
+(defun org-roam-fz-fid--lsd-inc (fid)
+  "Increment the least-significant digit of FID by one.
+Incrementing the LSD of an fID means 12.4 becomes 12.5, for example."
   (let ((comps (org-roam-fz-fid--split-alnum (org-roam-fz-fid-alnum fid))))
     (setcar (nthcdr 0 comps) (org-roam-fz-fid--alnum-inc (nth 0 comps)))
     (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))

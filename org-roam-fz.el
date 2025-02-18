@@ -311,7 +311,7 @@ The overlay(s) at point are removed if exist."
 ;;; Functions to expose for Org Roam capture template
 
 (defvar org-roam-fz--id nil
-  "TBD.")
+  "Temporary storage for ID used by at-point note creation functions.")
 
 (defun org-roam-fz--id-set (&rest _)
   "Set ID from the document position at point.
@@ -329,8 +329,7 @@ This is an advice for `org-roam-node-find'."
 (defun org-roam-fz-fid-prompt (&optional render-mode)
   "Prompt user for a new fID and render.
 See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
-  (let ((render-mode (or render-mode 'alnum))
-        (prompt "Folgezettel ID: ")
+  (let ((prompt "Folgezettel ID: ")
         fid input)
     (while (null fid)
       (setq input (read-string prompt))
@@ -344,8 +343,7 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
 (defun org-roam-fz-fid-new (&optional render-mode)
   "Render the fID for a new-topic zettel.
 See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
-  (let ((render-mode (or render-mode 'alnum))
-        (fid (org-roam-fz-fid-make (format "1.1-%s" org-roam-fz-zk))))
+  (let ((fid (org-roam-fz-fid-make (format "1.1-%s" org-roam-fz-zk))))
     (while (org-roam-fz-fid--exists fid)
       (setq fid (org-roam-fz-fid--msd-inc fid)))
     (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
@@ -356,8 +354,7 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
 See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
   (if (not (and (boundp 'org-roam-fz--id) org-roam-fz--id))
       (org-roam-fz-fid-prompt render-mode)
-    (let* ((render-mode (or render-mode 'alnum))
-           (fid (org-roam-fz-fid-make org-roam-fz--id)))
+    (let ((fid (org-roam-fz-fid-make org-roam-fz--id)))
       (org-roam-fz-fid--msd-n fid 3)
       (while (org-roam-fz-fid--exists fid)
         (setq fid (org-roam-fz-fid--lsd-inc fid)))
@@ -369,8 +366,7 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
 See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
   (if (not (and (boundp 'org-roam-fz--id) org-roam-fz--id))
       (org-roam-fz-fid-prompt render-mode)
-    (let ((render-mode (or render-mode 'alnum))
-          (fid (org-roam-fz-fid-make org-roam-fz--id)))
+    (let ((fid (org-roam-fz-fid-make org-roam-fz--id)))
       (setq fid (org-roam-fz-fid--lsd-add fid))
       (while (org-roam-fz-fid--exists fid)
         (setq fid (org-roam-fz-fid--lsd-inc fid)))

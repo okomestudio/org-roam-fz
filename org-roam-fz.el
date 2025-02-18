@@ -209,6 +209,12 @@ Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
     (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
     fid))
 
+(defun org-roam-fz-fid--msd-n (fid n)
+  "Take the first N digits of FID from the MSD."
+  (let* ((comps (org-roam-fz-fid--split-alnum (org-roam-fz-fid-alnum fid))))
+    (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join (last comps n)))
+    fid))
+
 ;;; Overlays
 
 (defun org-roam-fz-overlays-render-fid-default (fid)

@@ -110,6 +110,18 @@
           :to-equal (org-roam-fz-fid-make expected))))))
 
 (describe
+ "org-roam-fz-fid--msd-n"
+ (it "take the first n digits of fID from the MSD"
+     (dolist (try '(("12.3a5c-default" 1 "12-default")
+                    ("12.3a5c-default" 2 "12.-default")
+                    ("12.3a5c-default" 3 "12.3-default")))
+       (cl-destructuring-bind
+           (init n expected) try
+         (expect
+          (org-roam-fz-fid--msd-n (org-roam-fz-fid-make init) n)
+          :to-equal (org-roam-fz-fid-make expected))))))
+
+(describe
  "org-roam-fz-fid-prompt"
  :var* ((alnum "12.1a"))
  (it "renders fID from user input"

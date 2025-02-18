@@ -9,6 +9,18 @@
 (require 'org-roam-fz)
 (require 'cl)
 
+;;; Setup
+
+(setq org-roam-fz-zk "zk")
+(defun setup-org-roam-db ()
+  "Set up Org Roam database using the test data."
+  (setq org-roam-directory "./tests/zk/")
+  (org-roam-db-sync))
+
+(setup-org-roam-db)
+
+;;; Tests
+
 (describe
  "org-roam-fz-fid-make"
  :var ((fid (org-roam-fz-fid-make "12.3ab4-default")))

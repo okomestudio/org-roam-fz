@@ -142,6 +142,10 @@ For example, \"12.1a\" will be split to '(\"a\" \"1\" \".\" \"12\")."
       (setq subs (substring subs (length part))))
     parts))
 
+(defun org-roam-fz-fid--alnum-join (comps)
+  "Join split alnum components COMPS."
+  (string-join (reverse comps)))
+
 (defun org-roam-fz-fid--exists (fid)
   "Return non-nil if FID already exists in the org-roam database."
   (org-roam-id-find (org-roam-fz-fid--render fid 'full)))

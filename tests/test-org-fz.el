@@ -34,6 +34,13 @@
              :to-throw 'error)))
 
 (describe
+ "org-roam-fz-fid--alnum-join"
+ :var* ((expected "12.2a")
+        (comps (org-roam-fz-fid--split-alnum expected)))
+ (it "join fID string components"
+     (expect (org-roam-fz-fid--alnum-join comps) :to-equal expected)))
+
+(describe
  "org-roam-fz-fid--exists"
  (it "returns non-nil when fID exists"
      (expect (org-roam-fz-fid--exists

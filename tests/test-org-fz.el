@@ -137,21 +137,37 @@
  "org-roam-fz-fid-new"
  :var* (;; the fID "1.1" exists, so MSD will be incremented
         (expected (org-roam-fz-fid-make "2.1-zk")))
- (dolist (mode '('alnum 'zk 'full))
-   (it "renders the MODE of the new-topic fID"
+ (dolist (mode '(alnum zk full))
+   (it (format "renders %s of the new-topic fID" mode)
        (expect (org-roam-fz-fid-new mode)
                :to-equal (org-roam-fz-fid--render expected mode)))))
 
 (describe
+ "org-roam-fz-fid-related"
+ :var ((tries '(("1.1a3b4-zk" "1.2-zk")
+                ("1.1-zk" "1.2-zk")
+                ("1.1a5-zk" "1.2-zk")))
+       (index -1))
+ (before-each
+  (setq org-roam-fz--id (car (nth index tries))))
+
+ (dolist (try tries)
+   (setq index (1+ index))
+   (cl-destructuring-bind
+       (init expected) try
+     (dolist (mode '(full))
+       (let ((init (org-roam-fz-fid-make init))
+             (expected (org-roam-fz-fid-make expected)))
+         (it (format "renders %s of the related-topic fID from %s" mode init)
+             (expect (org-roam-fz-fid-related mode)
+                     :to-equal (org-roam-fz-fid--render expected mode))))))))
+
 (describe
  "org-roam-fz-fid-follow-up"
- :var* ((org-roam-db-location "roam-test.db")
-        (org-roam-directory "/tmp")
-        (alnum "12.1a")
-        (alnum-incremented "12.1a1")
-        (org-roam-fz-zk "zk"))
+ :var* ((alnum "12.1a")
+        (alnum-incremented "12.1a1"))
  (before-each
-  (setq org-roam-fz--id (concat alnum "-" org-roam-fz-zk)))
+  (setq org-roam-fz--id (format "%s-%s" alnum org-roam-fz-zk)))
 
  (it "renders alnum of the follow-up fID"
      (expect (org-roam-fz-fid-follow-up 'alnum) :to-equal alnum-incremented))

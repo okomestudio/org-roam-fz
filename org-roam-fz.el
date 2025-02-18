@@ -31,27 +31,32 @@
 
 (require 'org-roam)
 
+(defgroup org-roam-fz nil
+  "Settings for `org-roam-fz'."
+  :group 'extensions
+  :link '(url-link "https://github.com/okomestudio/org-roam-fz/org-roam-fz.el"))
+
 (defcustom org-roam-fz-zk "default"
   "The name of default Zettelkasten."
   :type 'string
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 (defcustom org-roam-fz-overlays-format "[%s] "
   "The string format for displaying fID."
   :type 'string
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 (defcustom org-roam-fz-overlays-render-fid #'org-roam-fz-overlays-render-fid-default
   "The function that renders fID.
 This is a function that takes a single string argument ID."
   :type 'function
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 (defcustom org-roam-fz-overlays-render-id nil
   "The function that renders an ID.
 This is a function that takes a single string argument ID."
   :type 'function
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-follow-up-template
   (lambda ()
@@ -65,13 +70,13 @@ This is a function that takes a single string argument ID."
               "- See ... for ...")))
   "Template string or function for the follow-up note capture template."
   :type '(choice function string)
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-follow-up-file
   "%(org-roam-fz-zk)/%(org-roam-fz-fid-follow-up)/${slug}.org"
   "Filename for the follow-up note capture template."
   :type 'string
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-follow-up-header
   (concat ":PROPERTIES:\n"
@@ -80,18 +85,18 @@ This is a function that takes a single string argument ID."
           "#+title: ${title}\n\n")
   "Header for the follow-up note capture template."
   :type 'string
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-new-template "%?\n--------\n- See ... for ..."
   "Template string or function for the new-topic note capture template."
   :type '(choice function string)
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-new-file
   "%(org-roam-fz-zk)/%(org-roam-fz-fid-prompt)/${slug}.org"
   "Filename for the new-topic note capture template."
   :type 'string
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-new-header
   (concat ":PROPERTIES:\n"
@@ -100,7 +105,7 @@ This is a function that takes a single string argument ID."
           "#+title: ${title}\n\n")
   "Header for the new-topic note capture template."
   :type 'string
-  :group 'org-roam)
+  :group 'org-roam-fz)
 
 ;;; Structures
 

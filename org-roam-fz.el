@@ -194,7 +194,7 @@ it becomes 'aa'; then 'ab', 'ac', ..., etc."
 Adding an LSD component to an fID means 12.4 becomes 12.4a, for example."
   (let ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
     (push (if (string-match "[[:digit:]]+" (nth 0 comps)) "a" "1") comps)
-    (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
+    (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join comps))
     fid))
 
 (defun org-roam-fz-fid--lsd-inc (fid)
@@ -202,7 +202,7 @@ Adding an LSD component to an fID means 12.4 becomes 12.4a, for example."
 Incrementing the LSD of an fID means 12.4 becomes 12.5, for example."
   (let ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
     (setcar (nthcdr 0 comps) (org-roam-fz-fid--alnum-inc (nth 0 comps)))
-    (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
+    (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join comps))
     fid))
 
 (defun org-roam-fz-fid--msd-inc (fid)
@@ -211,7 +211,7 @@ Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
   (let* ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid)))
          (n (1- (length comps))))
     (setcar (nthcdr n comps) (org-roam-fz-fid--alnum-inc (nth n comps)))
-    (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
+    (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join comps))
     fid))
 
 (defun org-roam-fz-fid--msd-n (fid n)

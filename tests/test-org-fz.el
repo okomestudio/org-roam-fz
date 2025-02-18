@@ -34,21 +34,21 @@
      (expect (org-roam-fz-fid-make "#%#") :to-throw 'error)))
 
 (describe
- "org-roam-fz-fid--split-alnum"
+ "org-roam-fz-fid--alnum-split"
  (it "splits fID string into components"
-     (expect (org-roam-fz-fid--split-alnum "12.2a")
+     (expect (org-roam-fz-fid--alnum-split "12.2a")
              :to-equal '("a" "2" "." "12")))
  (it "splits fID string without the comma component into components"
-     (expect (org-roam-fz-fid--split-alnum "2a3c")
+     (expect (org-roam-fz-fid--alnum-split "2a3c")
              :to-equal '("c" "3" "a" "2")))
  (it "throws an error on invalid fID string"
-     (expect (org-roam-fz-fid--split-alnum "@5*2a3c")
+     (expect (org-roam-fz-fid--alnum-split "@5*2a3c")
              :to-throw 'error)))
 
 (describe
  "org-roam-fz-fid--alnum-join"
  :var* ((expected "12.2a")
-        (comps (org-roam-fz-fid--split-alnum expected)))
+        (comps (org-roam-fz-fid--alnum-split expected)))
  (it "join fID string components"
      (expect (org-roam-fz-fid--alnum-join comps) :to-equal expected)))
 

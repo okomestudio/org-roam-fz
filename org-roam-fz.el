@@ -125,7 +125,7 @@ This is a function that takes a single string argument ID."
 - `zk' is the Zettelkasten name."
   alnum zk)
 
-(defun org-roam-fz-fid--split-alnum (alnum)
+(defun org-roam-fz-fid--alnum-split (alnum)
   "Split ALNUM to the alternating alpha-numeric components.
 For example, \"12.1a\" will be split to '(\"a\" \"1\" \".\" \"12\")."
   (let ((subs alnum) pos part parts)
@@ -192,7 +192,7 @@ it becomes 'aa'; then 'ab', 'ac', ..., etc."
 (defun org-roam-fz-fid--lsd-add (fid)
   "Add an least-significant digit component to FID.
 Adding an LSD component to an fID means 12.4 becomes 12.4a, for example."
-  (let ((comps (org-roam-fz-fid--split-alnum (org-roam-fz-fid-alnum fid))))
+  (let ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
     (push (if (string-match "[[:digit:]]+" (nth 0 comps)) "a" "1") comps)
     (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
     fid))
@@ -200,7 +200,7 @@ Adding an LSD component to an fID means 12.4 becomes 12.4a, for example."
 (defun org-roam-fz-fid--lsd-inc (fid)
   "Increment the least-significant digit of FID by one.
 Incrementing the LSD of an fID means 12.4 becomes 12.5, for example."
-  (let ((comps (org-roam-fz-fid--split-alnum (org-roam-fz-fid-alnum fid))))
+  (let ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
     (setcar (nthcdr 0 comps) (org-roam-fz-fid--alnum-inc (nth 0 comps)))
     (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
     fid))
@@ -208,7 +208,7 @@ Incrementing the LSD of an fID means 12.4 becomes 12.5, for example."
 (defun org-roam-fz-fid--msd-inc (fid)
   "Increment the most-significant digit of FID by one.
 Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
-  (let* ((comps (org-roam-fz-fid--split-alnum (org-roam-fz-fid-alnum fid)))
+  (let* ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid)))
          (n (1- (length comps))))
     (setcar (nthcdr n comps) (org-roam-fz-fid--alnum-inc (nth n comps)))
     (setf (org-roam-fz-fid-alnum fid) (string-join (reverse comps)))
@@ -216,7 +216,7 @@ Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
 
 (defun org-roam-fz-fid--msd-n (fid n)
   "Take the first N digits of FID from the MSD."
-  (let* ((comps (org-roam-fz-fid--split-alnum (org-roam-fz-fid-alnum fid))))
+  (let* ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
     (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join (last comps n)))
     fid))
 

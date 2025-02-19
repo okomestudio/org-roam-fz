@@ -333,10 +333,25 @@ The overlay(s) at point are removed if exist."
 (defvar org-roam-fz--id nil
   "Temporary storage for ID used by at-point note creation functions.")
 
+(defun org-roam-fz--id-parsable-p (id)
+  "Return non-nil if ID is a fID parsable string."
+  (and (stringp id)
+       (string-match
+        "^\\([0-9]+.\\)?\\([0-9]+[a-z]+\\)*\\([0-9]+\\)?-\\([^-]+\\)$"
+        id)))
+
 (defun org-roam-fz--id-set (&rest _)
   "Set ID from the document position at point.
-This is an advice for `org-roam-node-find'."
-  (setq org-roam-fz--id (org-roam-id-at-point)))
+When the point is on a link, the function tries to extract its ID
+string. Otherwise, the function gets the ID of Org roam node at point.
+
+This function advises `org-roam-node-find'."
+  (let* ((elmt (org-element-context))
+         (id (and (org-element-type-p elmt 'link)
+                  (string= (org-element-property :type elmt) "id")
+                  (org-element-property :path elmt))))
+    (setq org-roam-fz--id (or (and (org-roam-fz--id-parsable-p id) id)
+                              (org-roam-id-at-point)))))
 
 (defun org-roam-fz-fid ()
   "Render fID as string."

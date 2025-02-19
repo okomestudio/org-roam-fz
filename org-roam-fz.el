@@ -58,20 +58,6 @@ This is a function that takes a single string argument ID."
   :type 'function
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-follow-up-template
-  (lambda ()
-    (let* ((node (org-roam-node-from-id (org-roam-fz-fid)))
-           (fid (org-roam-node-id node))
-           (desc (org-roam-node-title node)))
-      (concat "%?\n"
-              "--------\n"
-              "- Previous: [[id:" fid "][" desc "]]\n"
-              "--------\n"
-              "- See ... for ...")))
-  "Template string or function for the follow-up note capture template."
-  :type '(choice function string)
-  :group 'org-roam-fz)
-
 (defcustom org-roam-fz-capture-template-follow-up-file
   "%(org-roam-fz-zk)/%(org-roam-fz-fid-follow-up)/${slug}.org"
   "Filename for the follow-up note capture template."
@@ -87,13 +73,22 @@ This is a function that takes a single string argument ID."
   :type 'string
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-new-template "%?\n--------\n- See ... for ..."
-  "Template string or function for the new-topic note capture template."
+(defcustom org-roam-fz-capture-template-follow-up-template
+  (lambda ()
+    (let* ((node (org-roam-node-from-id (org-roam-fz-fid)))
+           (fid (org-roam-node-id node))
+           (desc (org-roam-node-title node)))
+      (concat "%?\n"
+              "--------\n"
+              "- Previous: [[id:" fid "][" desc "]]\n"
+              "--------\n"
+              "- See ... for ...")))
+  "Template string or function for the follow-up note capture template."
   :type '(choice function string)
   :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-new-file
-  "%(org-roam-fz-zk)/%(org-roam-fz-fid-prompt)/${slug}.org"
+  "%(org-roam-fz-zk)/%(org-roam-fz-fid-new)/${slug}.org"
   "Filename for the new-topic note capture template."
   :type 'string
   :group 'org-roam-fz)
@@ -105,6 +100,31 @@ This is a function that takes a single string argument ID."
           "#+title: ${title}\n\n")
   "Header for the new-topic note capture template."
   :type 'string
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-capture-template-new-template "%?\n--------\n- See ... for ..."
+  "Template string or function for the new-topic note capture template."
+  :type '(choice function string)
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-capture-template-related-file
+  "%(org-roam-fz-zk)/%(org-roam-fz-fid-related)/${slug}.org"
+  "Filename for the related-topic note capture template."
+  :type 'string
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-capture-template-related-header
+  (concat ":PROPERTIES:\n"
+          ":ID: %(org-roam-fz-fid)\n"
+          ":END:\n"
+          "#+title: ${title}\n\n")
+  "Header for the related-topic note capture template."
+  :type 'string
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-capture-template-related-template "%?\n--------\n- See ... for ..."
+  "Template string or function for the related-topic note capture template."
+  :type '(choice function string)
   :group 'org-roam-fz)
 
 ;;; Structures
@@ -349,18 +369,6 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
     (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
     (org-roam-fz-fid--render fid render-mode)))
 
-(defun org-roam-fz-fid-related (&optional render-mode)
-  "Render the fID for a related-topic zettel.
-See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
-  (if (not (and (boundp 'org-roam-fz--id) org-roam-fz--id))
-      (org-roam-fz-fid-prompt render-mode)
-    (let ((fid (org-roam-fz-fid-make org-roam-fz--id)))
-      (org-roam-fz-fid--msd-n fid 3)
-      (while (org-roam-fz-fid--exists fid)
-        (setq fid (org-roam-fz-fid--lsd-inc fid)))
-      (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
-      (org-roam-fz-fid--render fid render-mode))))
-
 (defun org-roam-fz-fid-follow-up (&optional render-mode)
   "Render the fID for a follow-up topic zettel.
 See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
@@ -368,6 +376,18 @@ See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
       (org-roam-fz-fid-prompt render-mode)
     (let ((fid (org-roam-fz-fid-make org-roam-fz--id)))
       (setq fid (org-roam-fz-fid--lsd-add fid))
+      (while (org-roam-fz-fid--exists fid)
+        (setq fid (org-roam-fz-fid--lsd-inc fid)))
+      (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
+      (org-roam-fz-fid--render fid render-mode))))
+
+(defun org-roam-fz-fid-related (&optional render-mode)
+  "Render the fID for a related-topic zettel.
+See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
+  (if (not (and (boundp 'org-roam-fz--id) org-roam-fz--id))
+      (org-roam-fz-fid-prompt render-mode)
+    (let ((fid (org-roam-fz-fid-make org-roam-fz--id)))
+      (org-roam-fz-fid--msd-n fid 3)
       (while (org-roam-fz-fid--exists fid)
         (setq fid (org-roam-fz-fid--lsd-inc fid)))
       (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
@@ -400,6 +420,21 @@ custom variables `org-roam-fz-capture-template-*' to control output."
        org-roam-fz-capture-template-new-template)
     :target (file+head ,org-roam-fz-capture-template-new-file
                        ,org-roam-fz-capture-template-new-header)
+    :unnarrowed t
+    ,@rest))
+
+(defun org-roam-fz-capture-template-related (keys description &rest rest)
+  "Get the capture template for the related topic note.
+KEYS and DESCRIPTION are string. REST items are spliced at the end. Use
+custom variables `org-roam-fz-capture-template-*' to control output."
+  `(,keys
+    ,description
+    plain
+    ,(if (functionp org-roam-fz-capture-template-related-template)
+         `(function ,org-roam-fz-capture-template-related-template)
+       org-roam-fz-capture-template-related-template)
+    :target (file+head ,org-roam-fz-capture-template-related-file
+                       ,org-roam-fz-capture-template-related-header)
     :unnarrowed t
     ,@rest))
 

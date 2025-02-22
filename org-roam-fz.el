@@ -133,10 +133,9 @@ This is a function that takes a single string argument ID."
     (org-roam-fz-fid
      (:constructor org-roam-fz-fid-make
                    (id &aux
-                       (parts (let ((parts (split-string id "-")))
-                                (if (not (= (length parts) 2))
-                                    (error "Malformatted ID (%s)" id))
-                                parts))
+                       (parts (if (org-roam-fz-fid--string-parsable-p id)
+                                  (split-string id "-")
+                                (error "Malformatted ID (%s)" id)))
                        (alnum (nth 0 parts))
                        (zk (nth 1 parts)))))
   "Folgezettel ID structure.
@@ -144,6 +143,15 @@ This is a function that takes a single string argument ID."
 - `alnum' is the alphanumeric part of fID.
 - `zk' is the Zettelkasten name."
   alnum zk)
+
+(defvar org-roam-fz-fid--string-regexp
+  "^\\([0-9]+.\\)?\\([0-9]+[a-z]+\\)*\\([0-9]+\\)?-\\([^-]+\\)$"
+  "The regexp format for fID when stored as string.")
+
+(defun org-roam-fz-fid--string-parsable-p (id)
+  "Return non-nil if string ID is parsable into an fID."
+  (and (stringp id)
+       (string-match org-roam-fz-fid--string-regexp id)))
 
 (defun org-roam-fz-fid--alnum-split (alnum)
   "Split ALNUM to the alternating alpha-numeric components.
@@ -332,13 +340,6 @@ The overlay(s) at point are removed if exist."
 
 (defvar org-roam-fz--id nil
   "Temporary storage for ID used by at-point note creation functions.")
-
-(defun org-roam-fz--id-parsable-p (id)
-  "Return non-nil if ID is a fID parsable string."
-  (and (stringp id)
-       (string-match
-        "^\\([0-9]+.\\)?\\([0-9]+[a-z]+\\)*\\([0-9]+\\)?-\\([^-]+\\)$"
-        id)))
 
 (defun org-roam-fz--id-set (&rest _)
   "Set ID from the document position at point.

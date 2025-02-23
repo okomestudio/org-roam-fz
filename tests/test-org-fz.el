@@ -234,4 +234,15 @@
      (expect (org-roam-fz-capture-template-new keys description)
              :to-equal expected)))
 
+(describe
+ "org-roam-fz-overlays-render-fid-default"
+ :var (fid)
+ (it "renders fID correctly"
+     (pcase-dolist
+         (`(,init ,expected) `(("12.3a-nondefault" "[12.3a(nondefault)] ")
+                               (,(concat "12.3a-" org-roam-fz-zk) "[12.3a] ")))
+       (setq fid (org-roam-fz-fid-make init))
+       (expect (org-roam-fz-overlays-render-fid-default fid)
+               :to-equal expected))))
+
 ;;; test-org-fz.el ends here

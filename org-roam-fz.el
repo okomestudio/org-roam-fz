@@ -41,11 +41,6 @@
   :type 'string
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-overlays-format "[%s] "
-  "The string format for displaying fID."
-  :type 'string
-  :group 'org-roam-fz)
-
 (defcustom org-roam-fz-overlays-render-fid #'org-roam-fz-overlays-render-fid-default
   "The function that renders fID.
 This is a function that takes a single string argument ID."
@@ -252,22 +247,18 @@ Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
 
 (defun org-roam-fz-overlays-render-fid-default (fid)
   "The default FID renderer function."
-  (if (string= org-roam-fz-zk (org-roam-fz-fid-zk fid))
-      (org-roam-fz-fid--render fid 'alnum)
-    (format "%s(%s)"
-            (org-roam-fz-fid-alnum fid)
-            (org-roam-fz-fid-zk fid))))
+  (format "[%s] " (or (and (string= org-roam-fz-zk (org-roam-fz-fid-zk fid))
+                           (org-roam-fz-fid--render fid 'alnum))
+                      (concat (org-roam-fz-fid-alnum fid)
+                              "(" (org-roam-fz-fid-zk fid) ")"))))
 
 (defun org-roam-fz-overlays--format (id)
   "Format ID overlay."
-  (let* ((fid (ignore-errors (org-roam-fz-fid-make id)))
-         (rendered (if fid
-                       (when org-roam-fz-overlays-render-fid
-                         (funcall org-roam-fz-overlays-render-fid fid))
-                     (when org-roam-fz-overlays-render-id
-                       (funcall org-roam-fz-overlays-render-id id)))))
-    (when rendered
-      (format org-roam-fz-overlays-format rendered))))
+  (let ((fid (ignore-errors (org-roam-fz-fid-make id))))
+    (or (when (and org-roam-fz-overlays-render-fid fid)
+          (funcall org-roam-fz-overlays-render-fid fid))
+        (when org-roam-fz-overlays-render-id
+          (funcall org-roam-fz-overlays-render-id id)))))
 
 (defun org-roam-fz-overlays--in-title ()
   "Add fID overlays for title.

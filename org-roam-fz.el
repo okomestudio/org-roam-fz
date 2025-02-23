@@ -347,10 +347,24 @@ string. Otherwise, the function gets the ID of Org roam node at point.
 
 This function advises `org-roam-node-find'."
   (let* ((elmt (org-element-context))
-         (id (and (org-element-type-p elmt 'link)
-                  (string= (org-element-property :type elmt) "id")
-                  (org-element-property :path elmt))))
-    (setq org-roam-fz--id (or (and (org-roam-fz--id-parsable-p id) id)
+         (id (or
+              ;; If the point is on an ID link, extract its value.
+              (and (org-element-type-p elmt 'link)
+                   (string= (org-element-property :type elmt) "id")
+                   (org-element-property :path elmt))
+
+              ;; If the point is on a headline, see if the previous
+              ;; heading is an ID link. If so, extract its value.
+              (and (org-element-type-p elmt 'headline)
+                   (save-mark-and-excursion
+                     (org-previous-visible-heading 1)
+                     (org-end-of-line)
+                     (setq elmt (org-element-context))
+                     t)
+                   (and (org-element-type-p elmt 'link)
+                        (string= (org-element-property :type elmt) "id")
+                        (org-element-property :path elmt))))))
+    (setq org-roam-fz--id (or (and (org-roam-fz-fid--string-parsable-p id) id)
                               (org-roam-id-at-point)))))
 
 (defun org-roam-fz-fid ()

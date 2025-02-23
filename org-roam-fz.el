@@ -461,7 +461,10 @@ custom variables `org-roam-fz-capture-template-*' to control output."
   (remove-hook 'before-revert-hook #'org-roam-fz-overlays-remove)
   (remove-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (advice-remove #'delete-char #'org-roam-fz-overlays--on-delete-char)
-  (advice-remove #'org-roam-node-find #'org-roam-fz--id-set))
+  (advice-remove #'org-roam-node-find #'org-roam-fz--id-set)
+  (unload-feature 'org-roam-fz)      ; remove symbols based on feature
+  (unintern 'org-roam-node-fid)      ; remove ones still left after unload
+  )
 
 ;;;###autoload
 (define-minor-mode org-roam-fz-mode

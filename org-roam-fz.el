@@ -327,6 +327,14 @@ The overlay(s) at point are removed if exist."
   (org-roam-fz-overlays-remove)
   (org-roam-fz-overlays-add))
 
+;;; Structure method for `org-roam-node-display-template'
+
+(cl-defmethod org-roam-node-fid ((node org-roam-node))
+  "Access fID of `org-roam-node' struct CL-X."
+  (let* ((id (org-roam-node-id node))
+         (fid (and (org-roam-fz-fid--string-parsable-p id) id)))
+    (if fid (org-roam-fz-overlays--format fid))))
+
 ;;; Functions to expose for Org Roam capture template
 
 (defvar org-roam-fz--id nil

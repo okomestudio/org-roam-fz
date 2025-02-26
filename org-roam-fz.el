@@ -472,7 +472,9 @@ custom variables `org-roam-fz-capture-template-*' to control output."
 (defun org-roam-fz--activate ()
   "Activate the minor mode."
   (advice-add #'org-roam-node-find :before #'org-roam-fz--id-set)
+  ;; TODO: Use `before/after-change-functions'?
   (advice-add #'delete-char :after #'org-roam-fz-overlays--on-delete-char)
+  (add-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (add-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (add-hook 'before-revert-hook #'org-roam-fz-overlays-remove)
   (org-roam-fz-overlays-refresh))
@@ -482,6 +484,7 @@ custom variables `org-roam-fz-capture-template-*' to control output."
   (org-roam-fz-overlays-remove)
   (remove-hook 'before-revert-hook #'org-roam-fz-overlays-remove)
   (remove-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
+  (remove-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (advice-remove #'delete-char #'org-roam-fz-overlays--on-delete-char)
   (advice-remove #'org-roam-node-find #'org-roam-fz--id-set)
   (unload-feature 'org-roam-fz)      ; remove symbols based on feature

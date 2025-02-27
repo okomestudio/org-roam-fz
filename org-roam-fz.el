@@ -6,7 +6,7 @@
 ;; URL: https://github.com/okomestudio/org-roam-fz
 ;; Version: 0.1
 ;; Keywords: development, convenience
-;; Package-Requires: ((emacs "29.1") (org-roam "20250111.252"))
+;; Package-Requires: ((emacs "29.1") (org-roam "20250218.1722"))
 ;;
 ;;; License:
 ;;
@@ -341,31 +341,34 @@ The overlay(s) at point are removed if exist."
   "Temporary storage for ID used by at-point note creation functions.")
 
 (defun org-roam-fz--id-set (&rest _)
-  "Set ID from the document position at point.
+  "Set ID from the Org document position at point.
 When the point is on a link, the function tries to extract its ID
 string. Otherwise, the function gets the ID of Org roam node at point.
 
 This function advises `org-roam-node-find'."
-  (let* ((elmt (org-element-context))
-         (id (or
-              ;; If the point is on an ID link, extract its value.
-              (and (org-element-type-p elmt 'link)
-                   (string= (org-element-property :type elmt) "id")
-                   (org-element-property :path elmt))
-
-              ;; If the point is on a headline, see if the previous
-              ;; heading is an ID link. If so, extract its value.
-              (and (org-element-type-p elmt 'headline)
-                   (save-mark-and-excursion
-                     (org-previous-visible-heading 1)
-                     (org-end-of-line)
-                     (setq elmt (org-element-context))
-                     t)
+  (setq
+   org-roam-fz--id
+   (if (derived-mode-p '(org-mode))
+       (let* ((elmt (org-element-context))
+              (id (or
+                   ;; If the point is on an ID link, extract its value.
                    (and (org-element-type-p elmt 'link)
                         (string= (org-element-property :type elmt) "id")
-                        (org-element-property :path elmt))))))
-    (setq org-roam-fz--id (or (and (org-roam-fz-fid--string-parsable-p id) id)
-                              (org-roam-id-at-point)))))
+                        (org-element-property :path elmt))
+
+                   ;; If the point is on a headline, see if the previous
+                   ;; heading is an ID link. If so, extract its value.
+                   (and (org-element-type-p elmt 'headline)
+                        (save-mark-and-excursion
+                          (org-previous-visible-heading 1)
+                          (org-end-of-line)
+                          (setq elmt (org-element-context))
+                          t)
+                        (and (org-element-type-p elmt 'link)
+                             (string= (org-element-property :type elmt) "id")
+                             (org-element-property :path elmt))))))
+         (or (and (org-roam-fz-fid--string-parsable-p id) id)
+             (org-roam-id-at-point))))))
 
 (defun org-roam-fz-fid ()
   "Render fID as string."

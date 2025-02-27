@@ -3,18 +3,22 @@
 ;; Package-Requires: ((buttercup))
 ;;
 ;;; Commentary:
+;;
+;; Test `org-roam-fz'.
+;;
 ;;; Code:
 
 (require 'buttercup)
 (require 'org-roam-fz)
-(require 'cl)
 
 ;;; Setup
 
-(setq org-roam-fz-zk "zk")
+(setq org-roam-fz-zk "zktest")
 (defun setup-org-roam-db ()
   "Set up Org Roam database using the test data."
-  (setq org-roam-directory "./tests/zk/")
+  (setq org-roam-directory "./tests/zktest/")
+  ;; NOTE: The cache database will be found under
+  ;; .eldev/version/emacs-dir.
   (org-roam-db-sync))
 
 (setup-org-roam-db)
@@ -148,7 +152,7 @@
 (describe
  "org-roam-fz-fid-new"
  :var* (;; the fID "1.1" exists, so MSD will be incremented
-        (expected (org-roam-fz-fid-make "2.1-zk")))
+        (expected (org-roam-fz-fid-make (format "2.1-%s" org-roam-fz-zk))))
  (dolist (mode '(alnum zk full))
    (it (format "renders %s of the new-topic fID" mode)
        (expect (org-roam-fz-fid-new mode)
@@ -156,20 +160,20 @@
 
 (describe
  "org-roam-fz-fid-related"
- :var ((tries '(("1.1a3b4-zk" "1.2-zk")
-                ("1.1-zk" "1.2-zk")
-                ("1.1a5-zk" "1.2-zk")))
+ :var ((tries '(("1.1a3b4" "1.2")
+                ("1.1" "1.2")
+                ("1.1a5" "1.2")))
        (index -1))
  (before-each
-  (setq org-roam-fz--id (car (nth index tries))))
+  (setq org-roam-fz--id (format "%s-%s" (car (nth index tries)) org-roam-fz-zk)))
 
  (dolist (try tries)
    (setq index (1+ index))
    (cl-destructuring-bind
        (init expected) try
      (dolist (mode '(full))
-       (let ((init (org-roam-fz-fid-make init))
-             (expected (org-roam-fz-fid-make expected)))
+       (let ((init (org-roam-fz-fid-make (format "%s-%s" init org-roam-fz-zk)))
+             (expected (org-roam-fz-fid-make (format "%s-%s" expected org-roam-fz-zk))))
          (it (format "renders %s of the related-topic fID from %s" mode init)
              (expect (org-roam-fz-fid-related mode)
                      :to-equal (org-roam-fz-fid--render expected mode))))))))
@@ -245,4 +249,4 @@
        (expect (org-roam-fz-overlays-render-fid-default fid)
                :to-equal expected))))
 
-;;; test-org-fz.el ends here
+;;; test-org-roam-fz.el ends here

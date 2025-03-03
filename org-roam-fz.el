@@ -148,6 +148,12 @@ This is a function that takes a single string argument ID."
   (and (stringp id)
        (string-match org-roam-fz-fid--string-regexp id)))
 
+(defun org-roam-fz-fid--string-parse-zk (id)
+  "Return Zettelkasten name from string ID."
+  (and (stringp id)
+       (string-match org-roam-fz-fid--string-regexp id)
+       (match-string 4 id)))
+
 (defun org-roam-fz-fid--alnum-split (alnum)
   "Split ALNUM to the alternating alpha-numeric components.
 For example, \"12.1a\" will be split to '(\"a\" \"1\" \".\" \"12\")."
@@ -469,6 +475,30 @@ custom variables `org-roam-fz-capture-template-*' to control output."
                        ,org-roam-fz-capture-template-related-header)
     :unnarrowed t
     ,@rest))
+
+;;; Other public functions
+
+(defun org-roam-fz-random-node (arg &rest kwargs)
+  "Visit a random Folgezettel note in the Zettelkasten.
+When called with the `\\[universal-argument]' prefix ARG, the user will
+be prompted for ZK. When called non-interactively, ZK can also be given
+as a KWARGS, such that ':zk <zk>'."
+  (interactive "P")
+  (let ((org-roam-fz-zk (pcase arg
+                          ('(4) (read-string "Zettelkasten name: "))
+                          (_ (or (plist-get kwargs :zk) org-roam-fz-zk)))))
+    (condition-case err
+        (org-roam-node-random
+         nil
+         (lambda (node)
+           (let ((id (org-roam-node-id node)))
+             (and (org-roam-fz-fid--string-parsable-p id)
+                  (string= (org-roam-fz-fid--string-parse-zk id)
+                           org-roam-fz-zk)))))
+      (error
+       (if (string= (error-message-string err) "Sequence cannot be empty")
+           (message "No note found for Zettelkasten named '%s'!" org-roam-fz-zk)
+         (error (error-message-string err)))))))
 
 ;;; Define minor mode
 

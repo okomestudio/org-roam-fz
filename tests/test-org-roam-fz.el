@@ -57,6 +57,12 @@ ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
              :to-equal nil)))
 
 (describe
+ "org-roam-fz-fid--string-parse-zk"
+ (it "returns the Zettelkasten name from fID-parsable string ID"
+     (expect (org-roam-fz-fid--string-parse-zk (to-fid "2.9" "zk"))
+             :to-equal "zk")))
+
+(describe
  "org-roam-fz-fid--alnum-split"
  (it "splits fID string into components"
      (expect (org-roam-fz-fid--alnum-split "12.2a")
@@ -254,5 +260,13 @@ ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
        (setq fid (org-roam-fz-fid-make init))
        (expect (org-roam-fz-overlays-render-fid-default fid)
                :to-equal expected))))
+
+(describe
+ "org-roam-fz-random-node"
+ (it "can set zk noninteractively"
+     (expect (org-roam-fz-random-node nil)
+             :to-equal nil)
+     (expect (org-roam-fz-random-node nil :zk "supplied")
+             :to-equal nil)))
 
 ;;; test-org-roam-fz.el ends here

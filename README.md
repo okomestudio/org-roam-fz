@@ -2,7 +2,7 @@
 
 A Folgezettel ID mode for Org Roam.
 
-* TODOs
+### TODOs
 
 - [ ] A more consistent and robust overlay implementation while being edited
-- [ ] A random note picker for review
+- [X] A random note picker for review

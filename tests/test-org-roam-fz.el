@@ -23,6 +23,16 @@
 
 (setup-org-roam-db)
 
+(defun to-fid (alnum &optional zk)
+  "Construct string fID from its component.
+ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
+  (format "%s-%s" alnum (or zk org-roam-fz-zk)))
+
+(defun fid-make (alnum &optional zk)
+  "Construct an fID from its component.
+ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
+  (org-roam-fz-fid-make (to-fid alnum zk)))
+
 ;;; Tests
 
 (describe
@@ -36,6 +46,15 @@
  "org-roam-fz-fid-make"
  (it "fails to create fID from a malformatted ID"
      (expect (org-roam-fz-fid-make "#%#") :to-throw 'error)))
+
+(describe
+ "org-roam-fz-fid--string-parsable-p"
+ (it "returns non-nil if string ID is fID-parsable"
+     (expect (org-roam-fz-fid--string-parsable-p (to-fid "1.1"))
+             :not :to-equal nil))
+ (it "returns nil if string ID is not fID-parsable"
+     (expect (org-roam-fz-fid--string-parsable-p "notparsable")
+             :to-equal nil)))
 
 (describe
  "org-roam-fz-fid--alnum-split"
@@ -59,21 +78,19 @@
 (describe
  "org-roam-fz-fid--exists"
  (it "returns non-nil when fID exists"
-     (expect (org-roam-fz-fid--exists
-              (org-roam-fz-fid-make (format "1.1-%s" org-roam-fz-zk)))
+     (expect (org-roam-fz-fid--exists (org-roam-fz-fid-make (to-fid "1.1")))
              :not :to-equal nil))
  (it "returns nil when fID does not exist"
-     (expect (org-roam-fz-fid--exists
-              (org-roam-fz-fid-make (format "99.1-%s" org-roam-fz-zk)))
+     (expect (org-roam-fz-fid--exists (org-roam-fz-fid-make (to-fid "99.1")))
              :to-equal nil)))
 
 (describe
  "org-roam-fz-fid--render"
- :var ((fid (org-roam-fz-fid-make "12.3a-zk")))
+ :var ((fid (org-roam-fz-fid-make (to-fid "12.3a" "zk"))))
  (it "renders an fID in all modes"
      (expect (org-roam-fz-fid--render fid 'alnum) :to-equal "12.3a")
      (expect (org-roam-fz-fid--render fid 'zk) :to-equal "zk")
-     (expect (org-roam-fz-fid--render fid 'full) :to-equal "12.3a-zk"))
+     (expect (org-roam-fz-fid--render fid 'full) :to-equal (to-fid "12.3a" "zk")))
  (it "throws an error for an unrecognized mode"
      (expect (org-roam-fz-fid--render fid 'unknown) :to-throw 'error)))
 
@@ -90,69 +107,58 @@
 (describe
  "org-roam-fz-fid--lsd-add"
  (it "adds a child to fID"
-     (dolist (try '(("12.3-default" "12.3a-default")
-                    ("123ab4c5d-default" "123ab4c5d1-default")
-                    ("123ab4c5-default" "123ab4c5a-default")))
-       (cl-destructuring-bind
-           (input expected) try
-         (expect
-          (org-roam-fz-fid--lsd-add (org-roam-fz-fid-make input))
-          :to-equal (org-roam-fz-fid-make expected))))))
+     (cl-loop for (input expected)
+              in '(("12.3" "12.3a")
+                   ("123ab4c5d" "123ab4c5d1")
+                   ("123ab4c5" "123ab4c5a"))
+              do (expect (org-roam-fz-fid--lsd-add (fid-make input))
+                         :to-equal (fid-make expected)))))
 
 (describe
  "org-roam-fz-fid--lsd-inc"
  (it "increments the LSD of fID by one"
-     (dolist (try '(("12-default" "13-default")
-                    ("12.3-default" "12.4-default")
-                    ("123ab4c5d-default" "123ab4c5e-default")
-                    ("123ab4c5-default" "123ab4c6-default")))
-       (cl-destructuring-bind
-           (input expected) try
-         (expect
-          (org-roam-fz-fid--lsd-inc (org-roam-fz-fid-make input))
-          :to-equal (org-roam-fz-fid-make expected))))))
+     (cl-loop for (input expected)
+              in '(("12" "13")
+                   ("12.3" "12.4")
+                   ("123ab4c5d" "123ab4c5e")
+                   ("123ab4c5" "123ab4c6"))
+              do (expect (org-roam-fz-fid--lsd-inc (fid-make input))
+                         :to-equal (fid-make expected)))))
 
 (describe
  "org-roam-fz-fid--msd-inc"
  (it "increments the MSD of fID by one"
-     (dolist (try '(("12-default" "13-default")
-                    ("12.3-default" "13.3-default")
-                    ("123ab4c5d-default" "124ab4c5d-default")
-                    ("123ab4c5-default" "124ab4c5-default")))
-       (cl-destructuring-bind
-           (input expected) try
-         (expect
-          (org-roam-fz-fid--msd-inc (org-roam-fz-fid-make input))
-          :to-equal (org-roam-fz-fid-make expected))))))
+     (cl-loop for (input expected)
+              in '(("12" "13")
+                   ("12.3" "13.3")
+                   ("123ab4c5d" "124ab4c5d")
+                   ("123ab4c5" "124ab4c5"))
+              do (expect (org-roam-fz-fid--msd-inc (fid-make input))
+                         :to-equal (fid-make expected)))))
 
 (describe
  "org-roam-fz-fid--msd-n"
  (it "take the first n digits of fID from the MSD"
-     (dolist (try '(("12.3a5c-default" 1 "12-default")
-                    ("12.3a5c-default" 2 "12.-default")
-                    ("12.3a5c-default" 3 "12.3-default")))
-       (cl-destructuring-bind
-           (init n expected) try
-         (expect
-          (org-roam-fz-fid--msd-n (org-roam-fz-fid-make init) n)
-          :to-equal (org-roam-fz-fid-make expected))))))
+     (cl-loop for (init n expected)
+              in '(("12.3a5c" 1 "12")
+                   ("12.3a5c" 2 "12.")
+                   ("12.3a5c" 3 "12.3"))
+              do (expect (org-roam-fz-fid--msd-n (fid-make init) n)
+                         :to-equal (fid-make expected)))))
 
 (describe
  "org-roam-fz-fid-prompt"
  :var* ((alnum "12.1a"))
  (it "renders fID from user input"
      (cl-letf (((symbol-function 'read-string) (lambda (s) alnum)))
-       (expect (org-roam-fz-fid-prompt 'alnum)
-               :to-equal alnum)
-       (expect (org-roam-fz-fid-prompt 'zk)
-               :to-equal org-roam-fz-zk)
-       (expect (org-roam-fz-fid-prompt 'full)
-               :to-equal (concat alnum "-" org-roam-fz-zk)))))
+       (expect (org-roam-fz-fid-prompt 'alnum) :to-equal alnum)
+       (expect (org-roam-fz-fid-prompt 'zk) :to-equal org-roam-fz-zk)
+       (expect (org-roam-fz-fid-prompt 'full) :to-equal (to-fid alnum)))))
 
 (describe
  "org-roam-fz-fid-new"
  :var* (;; the fID "1.1" exists, so MSD will be incremented
-        (expected (org-roam-fz-fid-make (format "2.1-%s" org-roam-fz-zk))))
+        (expected (org-roam-fz-fid-make (to-fid "2.1"))))
  (dolist (mode '(alnum zk full))
    (it (format "renders %s of the new-topic fID" mode)
        (expect (org-roam-fz-fid-new mode)
@@ -165,33 +171,33 @@
                 ("1.1a5" "1.2")))
        (index -1))
  (before-each
-  (setq org-roam-fz--id (format "%s-%s" (car (nth index tries)) org-roam-fz-zk)))
+  (setq org-roam-fz--id (to-fid (car (nth index tries)))))
 
- (dolist (try tries)
-   (setq index (1+ index))
-   (cl-destructuring-bind
-       (init expected) try
-     (dolist (mode '(full))
-       (let ((init (org-roam-fz-fid-make (format "%s-%s" init org-roam-fz-zk)))
-             (expected (org-roam-fz-fid-make (format "%s-%s" expected org-roam-fz-zk))))
-         (it (format "renders %s of the related-topic fID from %s" mode init)
-             (expect (org-roam-fz-fid-related mode)
-                     :to-equal (org-roam-fz-fid--render expected mode))))))))
+ (cl-loop
+  for (init expected)
+  in tries
+  do
+  (setq index (1+ index))
+  (dolist (mode '(full))
+    (let ((init (fid-make init))
+          (expected (fid-make expected)))
+      (it (format "renders %s of the related-topic fID from %s" mode init)
+          (expect (org-roam-fz-fid-related mode)
+                  :to-equal (org-roam-fz-fid--render expected mode)))))))
 
 (describe
  "org-roam-fz-fid-follow-up"
  :var* ((alnum "12.1a")
         (alnum-incremented "12.1a1"))
  (before-each
-  (setq org-roam-fz--id (format "%s-%s" alnum org-roam-fz-zk)))
+  (setq org-roam-fz--id (to-fid alnum)))
 
  (it "renders alnum of the follow-up fID"
      (expect (org-roam-fz-fid-follow-up 'alnum) :to-equal alnum-incremented))
  (it "renders zk of the follow-up fID"
      (expect (org-roam-fz-fid-follow-up 'zk) :to-equal org-roam-fz-zk))
  (it "renders full of the follow-up fID"
-     (expect (org-roam-fz-fid-follow-up 'full)
-             :to-equal (concat alnum-incremented "-" org-roam-fz-zk))))
+     (expect (org-roam-fz-fid-follow-up 'full) :to-equal (to-fid alnum-incremented))))
 
 (describe
  "org-roam-fz-fid-follow-up"
@@ -201,8 +207,7 @@
   (setq org-roam-fz--id nil))
  (it "falls back to org-roam-fz-fid-prompt ig org-roam-fz--id not set"
      (cl-letf (((symbol-function 'read-string) (lambda (s) alnum)))
-       (expect (org-roam-fz-fid-follow-up 'full)
-               :to-equal (concat alnum "-" org-roam-fz-zk)))))
+       (expect (org-roam-fz-fid-follow-up 'full) :to-equal (to-fid alnum)))))
 
 (describe
  "org-roam-fz-capture-template-follow-up"
@@ -243,8 +248,9 @@
  :var (fid)
  (it "renders fID correctly"
      (pcase-dolist
-         (`(,init ,expected) `(("12.3a-nondefault" "[12.3a(nondefault)] ")
-                               (,(concat "12.3a-" org-roam-fz-zk) "[12.3a] ")))
+         (`(,init ,expected)
+          `((,(to-fid "12.3a" "nondefault") "[12.3a(nondefault)] ")
+            (,(to-fid "12.3a") "[12.3a] ")))
        (setq fid (org-roam-fz-fid-make init))
        (expect (org-roam-fz-overlays-render-fid-default fid)
                :to-equal expected))))

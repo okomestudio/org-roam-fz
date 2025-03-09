@@ -316,6 +316,21 @@ The overlay(s) at point are removed if exist."
     (when (overlays-in pos pos)
       (remove-overlays pos pos 'category 'folgezettel))))
 
+(defun org-roam-fz-link-insert ()
+  "Insert fIDs for all the links in the current buffer."
+  (interactive)
+  (when (org-roam-buffer-p)
+    (dolist (link (reverse (org-element-map (org-element-parse-buffer) 'link #'identity)))
+      (when (string= (org-element-property :type link) "id")
+        (let* ((id (org-element-property :path link))
+               (rendered (org-roam-fz-overlays--format id)))
+          (when rendered
+            (let ((pos (org-element-property :contents-begin link)))
+              (save-excursion
+                (beginning-of-buffer)
+                (forward-char (1- pos))
+                (insert rendered)))))))))
+
 (defun org-roam-fz-overlays-add ()
   "Add fID overlays in the current buffer."
   (when (org-roam-buffer-p)

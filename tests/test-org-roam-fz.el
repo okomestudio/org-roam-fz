@@ -153,67 +153,38 @@ ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
                          :to-equal (fid-make expected)))))
 
 (describe
- "org-roam-fz-fid-prompt"
- :var* ((alnum "12.1a"))
- (it "renders fID from user input"
-     (cl-letf (((symbol-function 'read-string) (lambda (s) alnum)))
-       (expect (org-roam-fz-fid-prompt 'alnum) :to-equal alnum)
-       (expect (org-roam-fz-fid-prompt 'zk) :to-equal org-roam-fz-zk)
-       (expect (org-roam-fz-fid-prompt 'full) :to-equal (to-fid alnum)))))
-
-(describe
- "org-roam-fz-fid-new"
+ "org-roam-fz-fid--new"
  :var* (;; the fID "1.1" exists, so MSD will be incremented
-        (expected (org-roam-fz-fid-make (to-fid "2.1"))))
- (dolist (mode '(alnum zk full))
-   (it (format "renders %s of the new-topic fID" mode)
-       (expect (org-roam-fz-fid-new mode)
-               :to-equal (org-roam-fz-fid--render expected mode)))))
+        (expected (fid-make "2.1")))
+ (it "finds an fID for a new topic"
+     (expect (org-roam-fz-fid--new) :to-equal expected)))
 
 (describe
- "org-roam-fz-fid-related"
+ "org-roam-fz-fid--related"
  :var ((tries '(("1.1a3b4" "1.2")
                 ("1.1" "1.2")
-                ("1.1a5" "1.2")))
-       (index -1))
- (before-each
-  (setq org-roam-fz--id (to-fid (car (nth index tries)))))
-
+                ("1.1a5" "1.2"))))
  (cl-loop
-  for (init expected)
-  in tries
+  for (init expected) in tries
   do
-  (setq index (1+ index))
-  (dolist (mode '(full))
-    (let ((init (fid-make init))
-          (expected (fid-make expected)))
-      (it (format "renders %s of the related-topic fID from %s" mode init)
-          (expect (org-roam-fz-fid-related mode)
-                  :to-equal (org-roam-fz-fid--render expected mode)))))))
+  (let ((init (fid-make init))
+        (expected (fid-make expected)))
+    (it (format "finds an fID for a topic related to %s" init)
+        (expect (org-roam-fz-fid--related init) :to-equal expected)))))
 
 (describe
- "org-roam-fz-fid-follow-up"
- :var* ((alnum "12.1a")
-        (alnum-incremented "12.1a1"))
- (before-each
-  (setq org-roam-fz--id (to-fid alnum)))
-
- (it "renders alnum of the follow-up fID"
-     (expect (org-roam-fz-fid-follow-up 'alnum) :to-equal alnum-incremented))
- (it "renders zk of the follow-up fID"
-     (expect (org-roam-fz-fid-follow-up 'zk) :to-equal org-roam-fz-zk))
- (it "renders full of the follow-up fID"
-     (expect (org-roam-fz-fid-follow-up 'full) :to-equal (to-fid alnum-incremented))))
-
-(describe
- "org-roam-fz-fid-follow-up"
- :var* ((alnum "12.1a")
-        (org-roam-fz-zk "zk"))
- (before-each
-  (setq org-roam-fz--id nil))
- (it "falls back to org-roam-fz-fid-prompt ig org-roam-fz--id not set"
-     (cl-letf (((symbol-function 'read-string) (lambda (s) alnum)))
-       (expect (org-roam-fz-fid-follow-up 'full) :to-equal (to-fid alnum)))))
+ "org-roam-fz-fid--follow-up"
+ :var (;; (alnum "12.1a")
+       ;; (alnum-incremented "12.1a1")
+       (tries '(("12.1a" "12.1a1")
+                ("12.1c3" "12.1c3a"))))
+ (cl-loop
+  for (init expected) in tries
+  do
+  (let ((init (fid-make init))
+        (expected (fid-make expected)))
+    (it (format "find an fID for a topic following up to %s" init)
+        (expect (org-roam-fz-fid--follow-up init) :to-equal expected)))))
 
 (describe
  "org-roam-fz-capture-template-follow-up"
@@ -227,7 +198,7 @@ ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
                           :unnarrowed t)))
  (it "renders a follow-up note template from custom variables"
      (setopt org-roam-fz-capture-template-follow-up-template template
-             org-roam-fz-capture-template-follow-up-file file
+             org-roam-fz-capture-template-file file
              org-roam-fz-capture-template-follow-up-header header)
      (expect (org-roam-fz-capture-template-follow-up keys description)
              :to-equal expected)))
@@ -244,7 +215,7 @@ ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
                           :unnarrowed t)))
  (it "renders a new template from custom variables"
      (setopt org-roam-fz-capture-template-new-template template
-             org-roam-fz-capture-template-new-file file
+             org-roam-fz-capture-template-file file
              org-roam-fz-capture-template-new-header header)
      (expect (org-roam-fz-capture-template-new keys description)
              :to-equal expected)))

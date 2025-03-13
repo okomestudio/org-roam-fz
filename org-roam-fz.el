@@ -4,8 +4,8 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.1
-;; Keywords: development, convenience
+;; Version: 0.2.1
+;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "29.1") (org-roam "20250218.1722"))
 ;;
 ;;; License:
@@ -41,7 +41,8 @@
   :type 'string
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-overlays-render-fid #'org-roam-fz-overlays-render-fid-default
+(defcustom org-roam-fz-overlays-render-fid
+  #'org-roam-fz-overlays-render-fid-default
   "The function that renders fID.
 This is a function that takes a single string argument ID."
   :type 'function
@@ -53,71 +54,46 @@ This is a function that takes a single string argument ID."
   :type 'function
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-follow-up-file
-  "%(org-roam-fz-zk)/%(org-roam-fz-fid-follow-up)/${slug}.org"
+(defcustom org-roam-fz-capture-template-file
+  "${zk}/${id}/${slug}.org"
   "Filename for the follow-up note capture template."
   :type 'string
   :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-follow-up-header
-  (concat ":PROPERTIES:\n"
-          ":ID: %(org-roam-fz-fid)\n"
-          ":END:\n"
-          "#+title: ${title}\n\n")
+  ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
   "Header for the follow-up note capture template."
   :type 'string
   :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-follow-up-template
   (lambda ()
-    (let* ((node (org-roam-node-from-id (org-roam-fz-fid)))
-           (fid (org-roam-node-id node))
-           (desc (org-roam-node-title node)))
-      (concat "%?\n"
-              "--------\n"
-              "- Previous: [[id:" fid "][" desc "]]\n"
-              "--------\n"
-              "- See ... for ...")))
+    (org-roam-fz-prepare-capture 'follow-up)
+    "%?\n--------\n- Previous: ${backlink}\n--------\n- See ... for ...")
   "Template string or function for the follow-up note capture template."
   :type '(choice function string)
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-new-file
-  "%(org-roam-fz-zk)/%(org-roam-fz-fid-new)/${slug}.org"
-  "Filename for the new-topic note capture template."
-  :type 'string
-  :group 'org-roam-fz)
-
 (defcustom org-roam-fz-capture-template-new-header
-  (concat ":PROPERTIES:\n"
-          ":ID: %(org-roam-fz-fid)\n"
-          ":END:\n"
-          "#+title: ${title}\n\n")
+  ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
   "Header for the new-topic note capture template."
   :type 'string
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-new-template "%?\n--------\n- See ... for ..."
+(defcustom org-roam-fz-capture-template-new-template
+  "%?\n--------\n- See ... for ..."
   "Template string or function for the new-topic note capture template."
   :type '(choice function string)
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-related-file
-  "%(org-roam-fz-zk)/%(org-roam-fz-fid-related)/${slug}.org"
-  "Filename for the related-topic note capture template."
-  :type 'string
-  :group 'org-roam-fz)
-
 (defcustom org-roam-fz-capture-template-related-header
-  (concat ":PROPERTIES:\n"
-          ":ID: %(org-roam-fz-fid)\n"
-          ":END:\n"
-          "#+title: ${title}\n\n")
+  ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
   "Header for the related-topic note capture template."
   :type 'string
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-related-template "%?\n--------\n- See ... for ..."
+(defcustom org-roam-fz-capture-template-related-template
+  "%?\n--------\n- See ... for ..."
   "Template string or function for the related-topic note capture template."
   :type '(choice function string)
   :group 'org-roam-fz)
@@ -358,93 +334,102 @@ The overlay(s) at point are removed if exist."
 
 ;;; Functions to expose for Org Roam capture template
 
-(defvar org-roam-fz--id nil
-  "Temporary storage for ID used by at-point note creation functions.")
+(cl-defun org-roam-fz-prepare-capture (mode)
+  "Use this as a function template in a capture template.
+MODE is one of `new', 'follow-up', and 'related'."
+  (let* (capture-node capture-info)
+    (cond
+     ((eq mode 'new)
+      (let* ((fid (org-roam-fz-fid--new))
+             (node
+              (org-roam-node-create
+               :id (org-roam-fz-fid--render fid 'full)
+               :title (org-roam-node-title org-roam-capture--node))))
+        (setq capture-node node)
+        (setq capture-info
+              `(:zk ,(org-roam-fz-fid--render fid 'zk)))))
 
-(defun org-roam-fz--id-set (&rest _)
-  "Set ID from the Org document position at point.
-When the point is on a link, the function tries to extract its ID
-string. Otherwise, the function gets the ID of Org roam node at point.
+     ((or (eq mode 'follow-up) (eq mode 'related))
+      (let* ((fid-gen (cl-case mode
+                        ('follow-up #'org-roam-fz-fid--follow-up)
+                        ('related #'org-roam-fz-fid--related)))
+             (fid-at-point (org-roam-fz--fid-at-point))
+             (node (org-roam-node-read
+                    (when fid-at-point
+                      (org-roam-node-title
+                       (org-roam-node-from-id
+                        (org-roam-fz-fid--render fid-at-point 'full))))
+                    (lambda (node)
+                      (org-roam-fz-fid--string-parsable-p
+                       (org-roam-node-id node)))
+                    nil
+                    t
+                    "Reference node: "))
+             (fid (org-roam-fz-fid-make (org-roam-node-id node)))
+             (fid-next (apply fid-gen `(,fid)))
+             (zk (org-roam-fz-fid--render fid-next 'zk))
+             (node-next
+              (org-roam-node-create
+               :id (org-roam-fz-fid--render fid-next 'full)
+               :title (org-roam-node-title org-roam-capture--node))))
+        (setq capture-node node-next)
+        (setq capture-info
+              `(:zk ,zk :backlink ,(format "[[id:%s][%s]]"
+                                           (org-roam-fz-fid--render fid 'full)
+                                           (org-roam-node-title node))))))
 
-This function advises `org-roam-node-find'."
-  (setq
-   org-roam-fz--id
-   (if (derived-mode-p '(org-mode))
-       (let* ((elmt (org-element-context))
-              (id (or
-                   ;; If the point is on an ID link, extract its value.
-                   (and (org-element-type-p elmt 'link)
-                        (string= (org-element-property :type elmt) "id")
-                        (org-element-property :path elmt))
+     (t (error "Unknown mode: %s" mode)))
 
-                   ;; If the point is on a headline, see if the previous
-                   ;; heading is an ID link. If so, extract its value.
-                   (and (org-element-type-p elmt 'headline)
-                        (save-mark-and-excursion
-                          (org-previous-visible-heading 1)
-                          (org-end-of-line)
-                          (setq elmt (org-element-context))
-                          t)
-                        (and (org-element-type-p elmt 'link)
-                             (string= (org-element-property :type elmt) "id")
-                             (org-element-property :path elmt))))))
-         (or (and (org-roam-fz-fid--string-parsable-p id) id)
-             (org-roam-id-at-point))))))
+    (setq org-roam-capture--node capture-node)
+    (setq org-roam-capture--info
+          (plist-put org-roam-capture--info
+                     :self-link
+                     (format "[[id:%s][%s]]"
+                             (org-roam-node-id capture-node)
+                             (org-roam-node-title capture-node))))
+    (setq org-roam-capture--info (append org-roam-capture--info capture-info))))
 
-(defun org-roam-fz-fid ()
-  "Render fID as string."
-  (symbol-value 'org-roam-fz--id))
+(cl-defun org-roam-fz--fid-at-point ()
+  "Get the fID of the Org structure at point."
+  (if (not (derived-mode-p '(org-mode))) (error "Not in org document"))
+  (let* ((elmt (org-element-context))
+         (id (or
+              ;; If the point is on an ID link, extract its value.
+              (and (org-element-type-p elmt 'link)
+                   (string= (org-element-property :type elmt) "id")
+                   (org-element-property :path elmt)))))
+    (or (and (org-roam-fz-fid--string-parsable-p id)
+             (org-roam-fz-fid-make id))
+        (let ((id (org-roam-id-at-point)))
+          (and (org-roam-fz-fid--string-parsable-p id)
+               (org-roam-fz-fid-make id))))))
 
-(defun org-roam-fz-zk ()
-  "Get the value of `org-roam-fz-zk'."
-  (symbol-value 'org-roam-fz-zk))
+(cl-defun org-roam-fz--kill-self-link ()
+  "Kill the self-link after new node capture."
+  (let ((self-link (plist-get org-roam-capture--info :self-link)))
+    (when self-link
+      (kill-new self-link t))))
 
-(defun org-roam-fz-fid-prompt (&optional render-mode)
-  "Prompt user for a new fID and render.
-See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
-  (let ((prompt "Folgezettel ID: ")
-        fid input)
-    (while (null fid)
-      (setq input (read-string prompt))
-      (setq fid (org-roam-fz-fid-make (format "%s-%s" input org-roam-fz-zk)))
-      (if (org-roam-fz-fid--exists fid)
-          (setq prompt (format "('%s' is taken) Folgezettel ID: " input)
-                fid nil)))
-    (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
-    (org-roam-fz-fid--render fid render-mode)))
-
-(defun org-roam-fz-fid-new (&optional render-mode)
-  "Render the fID for a new-topic zettel.
-See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
+(cl-defun org-roam-fz-fid--new ()
+  "Find an unused new fID."
   (let ((fid (org-roam-fz-fid-make (format "1.1-%s" org-roam-fz-zk))))
     (while (org-roam-fz-fid--exists fid)
       (setq fid (org-roam-fz-fid--msd-inc fid)))
-    (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
-    (org-roam-fz-fid--render fid render-mode)))
+    fid))
 
-(defun org-roam-fz-fid-follow-up (&optional render-mode)
-  "Render the fID for a follow-up topic zettel.
-See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
-  (if (not (and (boundp 'org-roam-fz--id) org-roam-fz--id))
-      (org-roam-fz-fid-prompt render-mode)
-    (let ((fid (org-roam-fz-fid-make org-roam-fz--id)))
-      (setq fid (org-roam-fz-fid--lsd-add fid))
-      (while (org-roam-fz-fid--exists fid)
-        (setq fid (org-roam-fz-fid--lsd-inc fid)))
-      (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
-      (org-roam-fz-fid--render fid render-mode))))
+(cl-defun org-roam-fz-fid--follow-up (fid)
+  "Find an unused follow-up fID relative to FID."
+  (setq fid (org-roam-fz-fid--lsd-add fid))
+  (while (org-roam-fz-fid--exists fid)
+    (setq fid (org-roam-fz-fid--lsd-inc fid)))
+  fid)
 
-(defun org-roam-fz-fid-related (&optional render-mode)
-  "Render the fID for a related-topic zettel.
-See `org-roam-fz-fid--render' for the available values for RENDER-MODE."
-  (if (not (and (boundp 'org-roam-fz--id) org-roam-fz--id))
-      (org-roam-fz-fid-prompt render-mode)
-    (let ((fid (org-roam-fz-fid-make org-roam-fz--id)))
-      (org-roam-fz-fid--msd-n fid 3)
-      (while (org-roam-fz-fid--exists fid)
-        (setq fid (org-roam-fz-fid--lsd-inc fid)))
-      (setq org-roam-fz--id (org-roam-fz-fid--render fid 'full))
-      (org-roam-fz-fid--render fid render-mode))))
+(cl-defun org-roam-fz-fid--related (fid)
+  "Find an unused related fID relateive to FID."
+  (setq fid (org-roam-fz-fid--msd-n fid 3))
+  (while (org-roam-fz-fid--exists fid)
+    (setq fid (org-roam-fz-fid--lsd-inc fid)))
+  fid)
 
 (defun org-roam-fz-capture-template-follow-up (keys description &rest rest)
   "Get the capture template for the follow-up note.
@@ -456,7 +441,7 @@ custom variables `org-roam-fz-capture-template-*' to control output."
     ,(if (functionp org-roam-fz-capture-template-follow-up-template)
          `(function ,org-roam-fz-capture-template-follow-up-template)
        org-roam-fz-capture-template-follow-up-template)
-    :target (file+head ,org-roam-fz-capture-template-follow-up-file
+    :target (file+head ,org-roam-fz-capture-template-file
                        ,org-roam-fz-capture-template-follow-up-header)
     :unnarrowed t
     ,@rest))
@@ -471,7 +456,7 @@ custom variables `org-roam-fz-capture-template-*' to control output."
     ,(if (functionp org-roam-fz-capture-template-new-template)
          `(function ,org-roam-fz-capture-template-new-template)
        org-roam-fz-capture-template-new-template)
-    :target (file+head ,org-roam-fz-capture-template-new-file
+    :target (file+head ,org-roam-fz-capture-template-file
                        ,org-roam-fz-capture-template-new-header)
     :unnarrowed t
     ,@rest))
@@ -486,7 +471,7 @@ custom variables `org-roam-fz-capture-template-*' to control output."
     ,(if (functionp org-roam-fz-capture-template-related-template)
          `(function ,org-roam-fz-capture-template-related-template)
        org-roam-fz-capture-template-related-template)
-    :target (file+head ,org-roam-fz-capture-template-related-file
+    :target (file+head ,org-roam-fz-capture-template-file
                        ,org-roam-fz-capture-template-related-header)
     :unnarrowed t
     ,@rest))
@@ -519,22 +504,22 @@ as a KWARGS, such that ':zk <zk>'."
 
 (defun org-roam-fz--activate ()
   "Activate the minor mode."
-  (advice-add #'org-roam-node-find :before #'org-roam-fz--id-set)
   ;; TODO: Use `before/after-change-functions'?
   (advice-add #'delete-char :after #'org-roam-fz-overlays--on-delete-char)
   (add-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (add-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (add-hook 'before-revert-hook #'org-roam-fz-overlays-remove)
+  (add-hook 'org-roam-capture-new-node-hook #'org-roam-fz--kill-self-link)
   (org-roam-fz-overlays-refresh))
 
 (defun org-roam-fz--deactivate ()
   "Deactivate the minor mode."
   (org-roam-fz-overlays-remove)
+  (remove-hook 'org-roam-capture-new-node-hook #'org-roam-fz--kill-self-link)
   (remove-hook 'before-revert-hook #'org-roam-fz-overlays-remove)
   (remove-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (remove-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (advice-remove #'delete-char #'org-roam-fz-overlays--on-delete-char)
-  (advice-remove #'org-roam-node-find #'org-roam-fz--id-set)
   (unload-feature 'org-roam-fz)      ; remove symbols based on feature
   (unintern 'org-roam-node-fid)      ; remove ones still left after unload
   )

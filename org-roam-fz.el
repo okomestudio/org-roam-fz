@@ -478,18 +478,13 @@ custom variables `org-roam-fz-capture-template-*' to control output."
 
 ;;; Other public functions
 
-(defun org-roam-fz-random-node (arg &rest kwargs)
-  "Visit a random Folgezettel note in the Zettelkasten.
-When called with the `\\[universal-argument]' prefix ARG, the user will
-be prompted for ZK. When called non-interactively, ZK can also be given
-as a KWARGS, such that ':zk <zk>'."
-  (interactive "P")
-  (let ((org-roam-fz-zk (pcase arg
-                          ('(4) (read-string "Zettelkasten name: "))
-                          (_ (or (plist-get kwargs :zk) org-roam-fz-zk)))))
+(defun org-roam-fz-random-node (&optional zk)
+  "Visit a random Folgezettel note in the Zettelkasten named ZK."
+  (interactive (list (read-string "Zettelkasten name: " org-roam-fz-zk)))
+  (let ((org-roam-fz-zk (or zk org-roam-fz-zk)))
     (condition-case err
         (org-roam-node-random
-         nil
+         t
          (lambda (node)
            (let ((id (org-roam-node-id node)))
              (and (org-roam-fz-fid--string-parsable-p id)

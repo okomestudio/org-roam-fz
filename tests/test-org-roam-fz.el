@@ -235,9 +235,8 @@ ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
 (describe
  "org-roam-fz-random-node"
  (it "can set zk noninteractively"
-     (expect (org-roam-fz-random-node nil)
-             :to-equal nil)
-     (expect (org-roam-fz-random-node nil :zk "supplied")
-             :to-equal nil)))
+     (expect (org-roam-fz-random-node) :to-equal nil)
+     (expect (org-roam-fz-random-node org-roam-fz-zk) :to-equal nil)
+     (expect (org-roam-fz-random-node "supplied") :to-equal nil)))
 
 ;;; test-org-roam-fz.el ends here

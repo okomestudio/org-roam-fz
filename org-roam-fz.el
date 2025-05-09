@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.2.1
+;; Version: 0.3.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "29.1") (org-roam "20250218.1722"))
 ;;
@@ -41,6 +41,11 @@
   :type 'string
   :group 'org-roam-fz)
 
+(defcustom org-roam-fz-target-filename "${zk}/${id}/${slug}.org"
+  "Filename for the new note."
+  :type 'string
+  :group 'org-roam-fz)
+
 (defcustom org-roam-fz-overlays-render-fid
   #'org-roam-fz-overlays-render-fid-default
   "The function that renders fID.
@@ -52,12 +57,6 @@ This is a function that takes a single string argument ID."
   "The function that renders an ID.
 This is a function that takes a single string argument ID."
   :type 'function
-  :group 'org-roam-fz)
-
-(defcustom org-roam-fz-capture-template-file
-  "${zk}/${id}/${slug}.org"
-  "Filename for the follow-up note capture template."
-  :type 'string
   :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-follow-up-header

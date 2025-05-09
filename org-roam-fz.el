@@ -335,15 +335,14 @@ The overlay(s) at point are removed if exist."
 
 (cl-defun org-roam-fz-prepare-capture (mode)
   "Use this as a function template in a capture template.
-MODE is one of `new', 'follow-up', and 'related'."
+MODE is one of `new', `follow-up', and `related'."
   (let* (capture-node capture-info)
     (cond
      ((eq mode 'new)
       (let* ((fid (org-roam-fz-fid--new))
-             (node
-              (org-roam-node-create
-               :id (org-roam-fz-fid--render fid 'full)
-               :title (org-roam-node-title org-roam-capture--node))))
+             (node (org-roam-node-create
+                    :id (org-roam-fz-fid--render fid 'full)
+                    :title (org-roam-node-title org-roam-capture--node))))
         (setq capture-node node)
         (setq capture-info
               `(:zk ,(org-roam-fz-fid--render fid 'zk)))))

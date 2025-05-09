@@ -66,9 +66,7 @@ This is a function that takes a single string argument ID."
   :group 'org-roam-fz)
 
 (defcustom org-roam-fz-capture-template-follow-up-template
-  (lambda ()
-    (org-roam-fz-prepare-capture 'follow-up)
-    "%?\n--------\n- Previous: ${backlink}\n--------\n- See ... for ...")
+  "%?\n--------\n- Previous: ${backlink}\n--------\n- See ... for ..."
   "Template string or function for the follow-up note capture template."
   :type '(choice function string)
   :group 'org-roam-fz)
@@ -436,10 +434,12 @@ custom variables `org-roam-fz-capture-template-*' to control output."
   `(,keys
     ,description
     plain
-    ,(if (functionp org-roam-fz-capture-template-follow-up-template)
-         `(function ,org-roam-fz-capture-template-follow-up-template)
-       org-roam-fz-capture-template-follow-up-template)
-    :target (file+head ,org-roam-fz-capture-template-file
+    (function ,(if (functionp org-roam-fz-capture-template-follow-up-template)
+                   org-roam-fz-capture-template-follow-up-template
+                 (lambda ()
+                   (org-roam-fz-prepare-capture 'follow-up)
+                   org-roam-fz-capture-template-follow-up-template)))
+    :target (file+head ,org-roam-fz-target-filename
                        ,org-roam-fz-capture-template-follow-up-header)
     :unnarrowed t
     ,@rest))
@@ -451,10 +451,12 @@ custom variables `org-roam-fz-capture-template-*' to control output."
   `(,keys
     ,description
     plain
-    ,(if (functionp org-roam-fz-capture-template-new-template)
-         `(function ,org-roam-fz-capture-template-new-template)
-       org-roam-fz-capture-template-new-template)
-    :target (file+head ,org-roam-fz-capture-template-file
+    (function ,(if (functionp org-roam-fz-capture-template-new-template)
+                   org-roam-fz-capture-template-new-template
+                 (lambda ()
+                   (org-roam-fz-prepare-capture 'new)
+                   org-roam-fz-capture-template-new-template)))
+    :target (file+head ,org-roam-fz-target-filename
                        ,org-roam-fz-capture-template-new-header)
     :unnarrowed t
     ,@rest))
@@ -466,10 +468,12 @@ custom variables `org-roam-fz-capture-template-*' to control output."
   `(,keys
     ,description
     plain
-    ,(if (functionp org-roam-fz-capture-template-related-template)
-         `(function ,org-roam-fz-capture-template-related-template)
-       org-roam-fz-capture-template-related-template)
-    :target (file+head ,org-roam-fz-capture-template-file
+    (function ,(if (functionp org-roam-fz-capture-template-related-template)
+                   org-roam-fz-capture-template-related-template
+                 (lambda ()
+                   (org-roam-fz-prepare-capture 'related)
+                   org-roam-fz-capture-template-related-template)))
+    :target (file+head ,org-roam-fz-target-filename
                        ,org-roam-fz-capture-template-related-header)
     :unnarrowed t
     ,@rest))

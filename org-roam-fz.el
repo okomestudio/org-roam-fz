@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.3.2
+;; Version: 0.4.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "29.1") (org-roam "20250218.1722"))
 ;;
@@ -69,37 +69,37 @@ This is a function that takes a single string argument ID."
   :type 'function
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-follow-up-header
+(defcustom org-roam-fz-capt-follow-up-header
   ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
   "Header for the follow-up note capture template."
   :type 'string
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-follow-up-template
+(defcustom org-roam-fz-capt-follow-up-template
   "%?\n--------\n- Previous: ${backlink}\n--------\n- See ... for ..."
   "Template string or function for the follow-up note capture template."
   :type '(choice function string)
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-new-header
+(defcustom org-roam-fz-capt-new-header
   ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
   "Header for the new-topic note capture template."
   :type 'string
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-new-template
+(defcustom org-roam-fz-capt-new-template
   "%?\n--------\n- See ... for ..."
   "Template string or function for the new-topic note capture template."
   :type '(choice function string)
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-related-header
+(defcustom org-roam-fz-capt-related-header
   ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
   "Header for the related-topic note capture template."
   :type 'string
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capture-template-related-template
+(defcustom org-roam-fz-capt-related-template
   "%?\n--------\n- See ... for ..."
   "Template string or function for the related-topic note capture template."
   :type '(choice function string)
@@ -435,54 +435,54 @@ MODE is one of `new', `follow-up', and `related'."
     (setq fid (org-roam-fz-fid--lsd-inc fid)))
   fid)
 
-(defun org-roam-fz-capture-template-follow-up (keys description &rest rest)
+(defun org-roam-fz-capt-follow-up (keys description &rest rest)
   "Get the capture template for the follow-up note.
 KEYS and DESCRIPTION are string. REST items are spliced at the end. Use
-custom variables `org-roam-fz-capture-template-*' to control output."
+custom variables `org-roam-fz-capt-*' to control output."
   `(,keys
     ,description
     plain
-    (function ,(if (functionp org-roam-fz-capture-template-follow-up-template)
-                   org-roam-fz-capture-template-follow-up-template
+    (function ,(if (functionp org-roam-fz-capt-follow-up-template)
+                   org-roam-fz-capt-follow-up-template
                  (lambda ()
                    (org-roam-fz-prepare-capture 'follow-up)
-                   org-roam-fz-capture-template-follow-up-template)))
+                   org-roam-fz-capt-follow-up-template)))
     :target (file+head ,org-roam-fz-target-filename
-                       ,org-roam-fz-capture-template-follow-up-header)
+                       ,org-roam-fz-capt-follow-up-header)
     :unnarrowed t
     ,@rest))
 
-(defun org-roam-fz-capture-template-new (keys description &rest rest)
+(defun org-roam-fz-capt-new (keys description &rest rest)
   "Get the capture template for the new topic note.
 KEYS and DESCRIPTION are string. REST items are spliced at the end. Use
-custom variables `org-roam-fz-capture-template-*' to control output."
+custom variables `org-roam-fz-capt-*' to control output."
   `(,keys
     ,description
     plain
-    (function ,(if (functionp org-roam-fz-capture-template-new-template)
-                   org-roam-fz-capture-template-new-template
+    (function ,(if (functionp org-roam-fz-capt-new-template)
+                   org-roam-fz-capt-new-template
                  (lambda ()
                    (org-roam-fz-prepare-capture 'new)
-                   org-roam-fz-capture-template-new-template)))
+                   org-roam-fz-capt-new-template)))
     :target (file+head ,org-roam-fz-target-filename
-                       ,org-roam-fz-capture-template-new-header)
+                       ,org-roam-fz-capt-new-header)
     :unnarrowed t
     ,@rest))
 
-(defun org-roam-fz-capture-template-related (keys description &rest rest)
+(defun org-roam-fz-capt-related (keys description &rest rest)
   "Get the capture template for the related topic note.
 KEYS and DESCRIPTION are string. REST items are spliced at the end. Use
-custom variables `org-roam-fz-capture-template-*' to control output."
+custom variables `org-roam-fz-capt-*' to control output."
   `(,keys
     ,description
     plain
-    (function ,(if (functionp org-roam-fz-capture-template-related-template)
-                   org-roam-fz-capture-template-related-template
+    (function ,(if (functionp org-roam-fz-capt-related-template)
+                   org-roam-fz-capt-related-template
                  (lambda ()
                    (org-roam-fz-prepare-capture 'related)
-                   org-roam-fz-capture-template-related-template)))
+                   org-roam-fz-capt-related-template)))
     :target (file+head ,org-roam-fz-target-filename
-                       ,org-roam-fz-capture-template-related-header)
+                       ,org-roam-fz-capt-related-header)
     :unnarrowed t
     ,@rest))
 

@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.3.1
+;; Version: 0.3.2
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "29.1") (org-roam "20250218.1722"))
 ;;
@@ -105,7 +105,11 @@ This is a function that takes a single string argument ID."
                                   (split-string id "-")
                                 (error "Malformatted ID (%s)" id)))
                        (alnum (nth 0 parts))
-                       (zk (nth 1 parts)))))
+                       (zk (nth 1 parts))))
+     (:copier org-roam-fz-fid-copy
+              (fid &aux
+                   (alnum (org-roam-fz-fid-alnum fid))
+                   (zk (org-roam-fz-fid-zk fid)))))
   "Folgezettel ID structure.
 
 - `alnum' is the alphanumeric part of fID.
@@ -194,7 +198,8 @@ it becomes 'aa'; then 'ab', 'ac', ..., etc."
 (defun org-roam-fz-fid--lsd-add (fid)
   "Add an least-significant digit component to FID.
 Adding an LSD component to an fID means 12.4 becomes 12.4a, for example."
-  (let ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
+  (let* ((fid (org-roam-fz-fid-copy fid))
+         (comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
     (push (if (string-match "[[:digit:]]+" (nth 0 comps)) "a" "1") comps)
     (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join comps))
     fid))
@@ -202,7 +207,8 @@ Adding an LSD component to an fID means 12.4 becomes 12.4a, for example."
 (defun org-roam-fz-fid--lsd-inc (fid)
   "Increment the least-significant digit of FID by one.
 Incrementing the LSD of an fID means 12.4 becomes 12.5, for example."
-  (let ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
+  (let* ((fid (org-roam-fz-fid-copy fid))
+         (comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
     (setcar (nthcdr 0 comps) (org-roam-fz-fid--alnum-inc (nth 0 comps)))
     (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join comps))
     fid))
@@ -210,7 +216,8 @@ Incrementing the LSD of an fID means 12.4 becomes 12.5, for example."
 (defun org-roam-fz-fid--msd-inc (fid)
   "Increment the most-significant digit of FID by one.
 Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
-  (let* ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid)))
+  (let* ((fid (org-roam-fz-fid-copy fid))
+         (comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid)))
          (n (1- (length comps))))
     (setcar (nthcdr n comps) (org-roam-fz-fid--alnum-inc (nth n comps)))
     (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join comps))
@@ -218,7 +225,8 @@ Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
 
 (defun org-roam-fz-fid--msd-n (fid n)
   "Take the first N digits of FID from the MSD."
-  (let* ((comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
+  (let* ((fid (org-roam-fz-fid-copy fid))
+         (comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
     (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join (last comps n)))
     fid))
 

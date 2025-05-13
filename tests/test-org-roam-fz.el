@@ -48,6 +48,17 @@ ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
      (expect (org-roam-fz-fid-make "#%#") :to-throw 'error)))
 
 (describe
+ "org-roam-fz-fid-copy"
+ :var ((fid (org-roam-fz-fid-make "12.3ab4-default")))
+ (it "copies Folgezettel ID object"
+     (let ((fid-copy (org-roam-fz-fid-copy fid)))
+       (expect (not (eq fid fid-copy)) :to-equal t)
+       (expect (org-roam-fz-fid-alnum fid-copy)
+               :to-equal (org-roam-fz-fid-alnum fid))
+       (expect (org-roam-fz-fid-zk fid-copy)
+               :to-equal (org-roam-fz-fid-zk fid)))))
+
+(describe
  "org-roam-fz-fid--string-parsable-p"
  (it "returns non-nil if string ID is fID-parsable"
      (expect (org-roam-fz-fid--string-parsable-p (to-fid "1.1"))

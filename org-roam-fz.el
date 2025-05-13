@@ -46,6 +46,16 @@
   :type 'string
   :group 'org-roam-fz)
 
+(defcustom org-roam-fz-add-tags-in-heading t
+  "Set t to add tags to heading on insert."
+  :type 'boolean
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-add-tags-exclude nil
+  "List of tags to exclude on `org-roam-fz-add-tags-in-heading'."
+  :type '(list string)
+  :group 'org-roam-fz)
+
 (defcustom org-roam-fz-overlays-render-fid
   #'org-roam-fz-overlays-render-fid-default
   "The function that renders fID.
@@ -350,8 +360,7 @@ MODE is one of `new', `follow-up', and `related'."
                     :id (org-roam-fz-fid--render fid 'full)
                     :title (org-roam-node-title org-roam-capture--node))))
         (setq capture-node node)
-        (setq capture-info
-              `(:zk ,(org-roam-fz-fid--render fid 'zk)))))
+        (setq capture-info `( :zk ,(org-roam-fz-fid--render fid 'zk) ))))
 
      ((or (eq mode 'follow-up) (eq mode 'related))
       (let* ((fid-gen (cl-case mode
@@ -377,20 +386,17 @@ MODE is one of `new', `follow-up', and `related'."
                :id (org-roam-fz-fid--render fid-next 'full)
                :title (org-roam-node-title org-roam-capture--node))))
         (setq capture-node node-next)
-        (setq capture-info
-              `(:zk ,zk :backlink ,(format "[[id:%s][%s]]"
-                                           (org-roam-fz-fid--render fid 'full)
-                                           (org-roam-node-title node))))))
+        (setq capture-info `( :zk ,zk
+                              :backlink ,(format "[[id:%s][%s]]"
+                                                 (org-roam-fz-fid--render fid 'full)
+                                                 (org-roam-node-title node))) )))
 
      (t (error "Unknown mode: %s" mode)))
 
     (setq org-roam-capture--node capture-node)
     (setq org-roam-capture--info
           (plist-put org-roam-capture--info
-                     :self-link
-                     (format "[[id:%s][%s]]"
-                             (org-roam-node-id capture-node)
-                             (org-roam-node-title capture-node))))
+                     :title (org-roam-node-title capture-node)))
     (setq org-roam-capture--info (append org-roam-capture--info capture-info))))
 
 (cl-defun org-roam-fz--fid-at-point ()
@@ -407,12 +413,6 @@ MODE is one of `new', `follow-up', and `related'."
         (let ((id (org-roam-id-at-point)))
           (and (org-roam-fz-fid--string-parsable-p id)
                (org-roam-fz-fid-make id))))))
-
-(cl-defun org-roam-fz--kill-self-link ()
-  "Kill the self-link after new node capture."
-  (let ((self-link (plist-get org-roam-capture--info :self-link)))
-    (when self-link
-      (kill-new self-link t))))
 
 (cl-defun org-roam-fz-fid--new ()
   "Find an unused new fID."
@@ -486,6 +486,30 @@ custom variables `org-roam-fz-capture-template-*' to control output."
     :unnarrowed t
     ,@rest))
 
+(cl-defun org-roam-fz--kill-on-capture ()
+  "Kill the node info to the kill ring after new node capture."
+  (let ((title (plist-get org-roam-capture--info :title)))
+    (when title
+      (kill-new title t))))
+
+(cl-defun org-roam-fz--post-insert-proc (id desc)
+  "Add tags when insert is at Org heading.
+Add this function to the hook `org-roam-post-node-insert-hook'. ID and
+DESC are passed from the hook and for the node being inserted."
+  (when (and
+         org-roam-fz-add-tags-in-heading
+         (org-roam-fz-fid--string-parsable-p id)
+         (org-at-heading-p)
+         (string-match-p "^\\s-*$"
+                         (buffer-substring-no-properties (point)
+                                                         (line-end-position))))
+    (let* ((node (org-roam-node-from-id id))
+           (tags (cl-set-difference (org-roam-node-tags node)
+                                    org-roam-fz-add-tags-exclude
+                                    :test #'equal)))
+      (when tags
+        (insert (format " :%s:" (string-join tags ":")))))))
+
 ;;; Other public functions
 
 (defun org-roam-fz-random-node (&optional zk)
@@ -511,19 +535,21 @@ custom variables `org-roam-fz-capture-template-*' to control output."
   "Activate the minor mode."
   ;; TODO: Use `before/after-change-functions'?
   (advice-add #'delete-char :after #'org-roam-fz-overlays--on-delete-char)
+  (add-hook 'org-roam-post-node-insert-hook #'org-roam-fz--post-insert-proc)
   (add-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (add-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (add-hook 'before-revert-hook #'org-roam-fz-overlays-remove)
-  (add-hook 'org-roam-capture-new-node-hook #'org-roam-fz--kill-self-link)
+  (add-hook 'org-roam-capture-new-node-hook #'org-roam-fz--kill-on-capture)
   (org-roam-fz-overlays-refresh))
 
 (defun org-roam-fz--deactivate ()
   "Deactivate the minor mode."
   (org-roam-fz-overlays-remove)
-  (remove-hook 'org-roam-capture-new-node-hook #'org-roam-fz--kill-self-link)
+  (remove-hook 'org-roam-capture-new-node-hook #'org-roam-fz--kill-on-capture)
   (remove-hook 'before-revert-hook #'org-roam-fz-overlays-remove)
   (remove-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (remove-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
+  (remove-hook 'org-roam-post-node-insert-hook #'org-roam-fz--post-insert-proc)
   (advice-remove #'delete-char #'org-roam-fz-overlays--on-delete-char)
   (unload-feature 'org-roam-fz)      ; remove symbols based on feature
   (unintern 'org-roam-node-fid)      ; remove ones still left after unload

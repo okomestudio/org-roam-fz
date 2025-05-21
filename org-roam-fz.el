@@ -4,9 +4,9 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.4.2
+;; Version: 0.4.3
 ;; Keywords: org-roam, convenience
-;; Package-Requires: ((emacs "29.1") (org-roam "20250218.1722"))
+;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
 ;;; License:
 ;;
@@ -508,7 +508,23 @@ DESC are passed from the hook and for the node being inserted."
       (when tags
         (insert (format " :%s:" (string-join tags ":")))))))
 
-;;; Other public functions
+;;; Public functions
+
+(cl-defun org-roam-fz-refresh-link ()
+  "Refresh hyperlink at point with node title."
+  (interactive)
+  (when-let* ((context (org-element-context))
+              (type (org-element-property :type context))
+              (is-id-link (and (eq (org-element-type context) 'link)
+                               (string= type "id")))
+              (id (org-element-property :path context))
+              (beg (org-element-property :begin context))
+              (end (org-element-property :end context))
+              (desc (org-roam-node-title (org-roam-node-from-id id))))
+    (goto-char beg)
+    (delete-region beg end)
+    (insert (format "[[%s:%s][%s]]" type id desc))
+    (run-hook-with-args 'org-roam-post-node-insert-hook id desc)))
 
 (defun org-roam-fz-random-node (&optional zk)
   "Visit a random Folgezettel note in the Zettelkasten named ZK."
@@ -556,7 +572,10 @@ DESC are passed from the hook and for the node being inserted."
   "A minor mode for using Folgezettel for org-roam IDs."
   :group 'org-roam
   :lighter "org-roam-fz-mode"
-  :keymap nil
+  :keymap (let ((map (make-sparse-keymap)))
+            (define-key map (kbd "C-c C-L") #'org-roam-fz-refresh-link)
+            map)
+
   (if org-roam-fz-mode
       (org-roam-fz--activate)
     (org-roam-fz--deactivate)))

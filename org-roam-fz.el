@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.4.1
+;; Version: 0.4.2
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "29.1") (org-roam "20250218.1722"))
 ;;
@@ -257,18 +257,25 @@ Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
         (when org-roam-fz-overlays-render-id
           (funcall org-roam-fz-overlays-render-id id)))))
 
+(defun org-roam-fz-overlays--put (beg end text)
+  "Add TEXT for the overlay from BEG to END."
+  (let ((ov (make-overlay beg end)))
+    (overlay-put ov 'before-string text)
+    (overlay-put ov 'category 'folgezettel)
+    (overlay-put ov 'evaporate t)))
+
 (defun org-roam-fz-overlays--in-title ()
   "Add fID overlays for title.
 ID is extracted from the file property."
-  (let* ((id (save-excursion (beginning-of-buffer) (org-roam-id-at-point)))
-         (rendered (org-roam-fz-overlays--format id))
-         (pos (save-excursion
-                (beginning-of-buffer)
-                (re-search-forward "#\\+title: " nil t))))
-    (when (and pos rendered)
-      (let ((ov (make-overlay pos pos)))
-        (overlay-put ov 'before-string rendered)
-        (overlay-put ov 'category 'folgezettel)))))
+  (save-excursion
+    (goto-char (point-min))
+    (let* ((id (org-roam-id-at-point))
+           (rendered (org-roam-fz-overlays--format id)))
+      (when (and rendered
+                 (re-search-forward "^#\\+TITLE:[ \t]*\\(.*\\)$" nil t))
+        (org-roam-fz-overlays--put (match-beginning 1)
+                                   (match-end 1)
+                                   rendered)))))
 
 (defun org-roam-fz-overlays--in-headlines ()
   "Add fID overlays for headlines.
@@ -278,13 +285,12 @@ IDs are extracted when headlines have IDs as their properties."
       (let* ((id (org-element-property :ID headline))
              (rendered (org-roam-fz-overlays--format id)))
         (when rendered
-          (let* ((pos (save-excursion
-                        (goto-char (org-element-property :begin headline))
-                        (re-search-forward (org-element-property :raw-value headline))
-                        (match-beginning 0)))
-                 (ov (make-overlay pos pos)))
-            (overlay-put ov 'before-string rendered)
-            (overlay-put ov 'category 'folgezettel)))))))
+          (org-roam-fz-overlays--put
+           (+ (org-element-property :begin headline)
+              (org-element-property :level headline)
+              1)
+           (org-element-property :end headline)
+           rendered))))))
 
 (defun org-roam-fz-overlays--in-links ()
   "Add fID overlays for links.
@@ -295,17 +301,9 @@ IDs are extracted from link paths."
         (let* ((id (org-element-property :path link))
                (rendered (org-roam-fz-overlays--format id)))
           (when rendered
-            (let* ((pos (org-element-property :begin link))
-                   (ov (make-overlay pos pos)))
-              (overlay-put ov 'before-string rendered)
-              (overlay-put ov 'category 'folgezettel))))))))
-
-(defun org-roam-fz-overlays--on-delete-char (&rest _)
-  "Advise `delete-char' to delete overlapping overlays.
-The overlay(s) at point are removed if exist."
-  (let ((pos (point)))
-    (when (overlays-in pos pos)
-      (remove-overlays pos pos 'category 'folgezettel))))
+            (org-roam-fz-overlays--put (org-element-property :begin link)
+                                       (org-element-property :end link)
+                                       rendered)))))))
 
 (defun org-roam-fz-link-insert ()
   "Insert fIDs for all the links in the current buffer."
@@ -534,7 +532,6 @@ DESC are passed from the hook and for the node being inserted."
 (defun org-roam-fz--activate ()
   "Activate the minor mode."
   ;; TODO: Use `before/after-change-functions'?
-  (advice-add #'delete-char :after #'org-roam-fz-overlays--on-delete-char)
   (add-hook 'org-roam-post-node-insert-hook #'org-roam-fz--post-insert-proc)
   (add-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (add-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
@@ -550,7 +547,6 @@ DESC are passed from the hook and for the node being inserted."
   (remove-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (remove-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (remove-hook 'org-roam-post-node-insert-hook #'org-roam-fz--post-insert-proc)
-  (advice-remove #'delete-char #'org-roam-fz-overlays--on-delete-char)
   (unload-feature 'org-roam-fz)      ; remove symbols based on feature
   (unintern 'org-roam-node-fid)      ; remove ones still left after unload
   )

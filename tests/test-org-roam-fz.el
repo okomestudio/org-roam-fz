@@ -198,38 +198,52 @@ ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
         (expect (org-roam-fz-fid--follow-up init) :to-equal expected)))))
 
 (describe
- "org-roam-fz-capture-template-follow-up"
- :var* ((keys "f")
-        (description "note for a follow-up topic")
-        (template (lambda () "template"))
-        (file "file")
-        (header "header")
-        (expected `( ,keys ,description plain (function ,template)
-                     :target (file+head ,file ,header)
-                     :unnarrowed t )))
- (it "renders a follow-up note template from custom variables"
-     (setopt org-roam-fz-target-filename file
-             org-roam-fz-capture-template-follow-up-template template
-             org-roam-fz-capture-template-follow-up-header header)
-     (expect (org-roam-fz-capture-template-follow-up keys description)
-             :to-equal expected)))
+ "org-roam-fz-capt-follow-up"
+ :var ((keys "f")
+       (description "note for a follow-up topic")
+       (file "file")
+       (header "header"))
+ (cl-loop
+  for (template expected-template)
+  in '(("template" (lambda ()
+                     (org-roam-fz-prepare-capture 'follow-up)
+                     "template"))
+       ((lambda () "template") (lambda () "template")))
+  do
+  (it (format "renders a follow-up note template from custom variables"
+              " (template: %s)" template)
+      (setopt org-roam-fz-target-filename file
+              org-roam-fz-capt-follow-up-template template
+              org-roam-fz-capt-follow-up-header header)
+      (expect (org-roam-fz-capt-follow-up keys description)
+              :to-equal `( ,keys ,description plain
+                           (function ,expected-template)
+                           :target (file+head ,file ,header)
+                           :unnarrowed t )))))
 
 (describe
- "org-roam-fz-capture-template-new"
+ "org-roam-fz-capt-new"
  :var* ((keys "n")
         (description "note for a new topic")
-        (template (lambda () "template"))
         (file "file")
-        (header "header")
-        (expected `( ,keys ,description plain (function ,template)
-                     :target (file+head ,file ,header)
-                     :unnarrowed t )))
- (it "renders a new template from custom variables"
-     (setopt org-roam-fz-target-filename file
-             org-roam-fz-capture-template-new-template template
-             org-roam-fz-capture-template-new-header header)
-     (expect (org-roam-fz-capture-template-new keys description)
-             :to-equal expected)))
+        (header "header"))
+ (cl-loop
+  for (template expected-template)
+  in '(("template" (lambda ()
+                     (org-roam-fz-prepare-capture 'new)
+                     "template"))
+       ((lambda () "template") (lambda () "template")))
+  do
+  (it (format "renders a new template from custom variables"
+              " (template: %s)" template)
+      (setopt org-roam-fz-target-filename file
+              org-roam-fz-capt-new-template template
+              org-roam-fz-capt-new-header header)
+      (expect (org-roam-fz-capt-new keys description)
+              :to-equal `( ,keys ,description plain
+                           (function ,template)
+                           :target (file+head ,file ,header)
+                           :unnarrowed t )))))
 
 (describe
  "org-roam-fz-overlays-render-fid-default"

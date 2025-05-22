@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.4.3
+;; Version: 0.4.4
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -43,6 +43,13 @@
 
 (defcustom org-roam-fz-target-filename "${zk}/${id}/${slug}.org"
   "Filename for the new note."
+  :type 'string
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-master-index-node-id nil
+  "Org Roam node ID of the master index for this Zettelkasten.
+This ID is used by `org-roam-fz-master-index-node-visit' to jump quickly
+to the master index note."
   :type 'string
   :group 'org-roam-fz)
 
@@ -510,6 +517,11 @@ DESC are passed from the hook and for the node being inserted."
 
 ;;; Public functions
 
+(cl-defun org-roam-fz-master-index-node-visit ()
+  "Visit the master index note for the current Zettelkasten."
+  (interactive)
+  (org-roam-node-open (org-roam-node-from-id org-roam-fz-master-index-node-id)))
+
 (cl-defun org-roam-fz-refresh-link ()
   "Refresh hyperlink at point with node title."
   (interactive)
@@ -563,9 +575,8 @@ DESC are passed from the hook and for the node being inserted."
   (remove-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (remove-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (remove-hook 'org-roam-post-node-insert-hook #'org-roam-fz--post-insert-proc)
-  (unload-feature 'org-roam-fz)      ; remove symbols based on feature
-  (unintern 'org-roam-node-fid)      ; remove ones still left after unload
-  )
+  (unload-feature 'org-roam-fz) ; remove symbols based on feature
+  (unintern 'org-roam-node-fid)) ; remove ones still left after unload
 
 ;;;###autoload
 (define-minor-mode org-roam-fz-mode
@@ -574,11 +585,9 @@ DESC are passed from the hook and for the node being inserted."
   :lighter "org-roam-fz-mode"
   :keymap (let ((map (make-sparse-keymap)))
             (define-key map (kbd "C-c C-L") #'org-roam-fz-refresh-link)
+            (define-key map (kbd "C-c C-i") #'org-roam-fz-master-index-node-visit)
             map)
-
-  (if org-roam-fz-mode
-      (org-roam-fz--activate)
-    (org-roam-fz--deactivate)))
+  (if org-roam-fz-mode (org-roam-fz--activate) (org-roam-fz--deactivate)))
 
 (provide 'org-roam-fz)
 ;;; org-roam-fz.el ends here

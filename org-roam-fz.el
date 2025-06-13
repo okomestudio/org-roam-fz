@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.4.4
+;; Version: 0.4.5
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -584,7 +584,7 @@ DESC are passed from the hook and for the node being inserted."
   :group 'org-roam
   :lighter "org-roam-fz-mode"
   :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "C-c C-L") #'org-roam-fz-refresh-link)
+            (define-key map (kbd "C-c C-S-l") #'org-roam-fz-refresh-link)
             (define-key map (kbd "C-c C-i") #'org-roam-fz-master-index-node-visit)
             map)
   (if org-roam-fz-mode (org-roam-fz--activate) (org-roam-fz--deactivate)))

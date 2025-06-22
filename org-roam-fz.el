@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.5.1
+;; Version: 0.5.2
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -362,13 +362,12 @@ IDs are extracted from link paths."
   (org-roam-fz-overlays-remove)
   (org-roam-fz-overlays-add))
 
-;;; Structure method for `org-roam-node-display-template'
+;;; Structure Methods
 
 (cl-defmethod org-roam-node-fid ((node org-roam-node))
-  "Access fID of `org-roam-node' struct CL-X."
-  (let* ((id (org-roam-node-id node))
-         (fid (and (org-roam-fz-fid--string-parsable-p id) id)))
-    (if fid (org-roam-fz-overlays--format fid))))
+  "Access fID of NODE via struct CL-X."
+  (and (org-roam-fz-fid--string-parsable-p (org-roam-node-id node))
+       (org-roam-node-id node)))
 
 ;;; Functions to expose for Org Roam capture template
 

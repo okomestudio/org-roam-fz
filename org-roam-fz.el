@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.4.5
+;; Version: 0.5.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -76,6 +76,11 @@ This is a function that takes a single string argument ID."
   :type 'function
   :group 'org-roam-fz)
 
+(defcustom org-roam-fz-overlays-text-placement 'before-string
+  "Which side of overlay to show rendered fID text."
+  :type '(choice 'before-string 'after-string)
+  :group 'org-roam-fz)
+
 (defcustom org-roam-fz-capt-follow-up-header
   ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
   "Header for the follow-up note capture template."
@@ -111,6 +116,12 @@ This is a function that takes a single string argument ID."
   "Template string or function for the related-topic note capture template."
   :type '(choice function string)
   :group 'org-roam-fz)
+
+(defface org-roam-fz-overlay
+  `((t :inherit fixed-pitch
+       :foreground ,(face-attribute 'shadow :foreground)
+       :background ,(face-attribute 'shadow :background)))
+  "Font face used for fID overlays.")
 
 ;;; Structures
 
@@ -251,10 +262,13 @@ Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
 
 (defun org-roam-fz-overlays-render-fid-default (fid)
   "The default FID renderer function."
-  (format "[%s] " (or (and (string= org-roam-fz-zk (org-roam-fz-fid-zk fid))
-                           (org-roam-fz-fid--render fid 'alnum))
-                      (concat (org-roam-fz-fid-alnum fid)
-                              "(" (org-roam-fz-fid-zk fid) ")"))))
+  (format "[%s]"
+          (or (and (string= org-roam-fz-zk
+                            (org-roam-fz-fid-zk fid))
+                   (org-roam-fz-fid--render fid 'alnum))
+              (concat (org-roam-fz-fid-alnum fid)
+                      "(" (org-roam-fz-fid-zk fid) ")")
+              "Error")))
 
 (defun org-roam-fz-overlays--format (id)
   "Format ID overlay."
@@ -266,8 +280,12 @@ Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
 
 (defun org-roam-fz-overlays--put (beg end text)
   "Add TEXT for the overlay from BEG to END."
-  (let ((ov (make-overlay beg end)))
-    (overlay-put ov 'before-string text)
+  (let* ((ov (make-overlay beg end))
+         (propertized-text (propertize text 'face 'org-roam-fz-overlay))
+         (text (pcase org-roam-fz-overlays-text-placement
+                 ('before-string (concat propertized-text " "))
+                 ('after-string (concat " " propertized-text)))))
+    (overlay-put ov org-roam-fz-overlays-text-placement text)
     (overlay-put ov 'category 'folgezettel)
     (overlay-put ov 'evaporate t)))
 

@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.5.2
+;; Version: 0.6.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -571,6 +571,67 @@ DESC are passed from the hook and for the node being inserted."
        (if (string= (error-message-string err) "Sequence cannot be empty")
            (message "No note found for Zettelkasten named '%s'!" org-roam-fz-zk)
          (error (error-message-string err)))))))
+
+(defun org-roam-fz--replace-id (old-id new-id)
+  "Replace OLD-ID with NEW-ID in all backlinks.
+This function returns the list of buffers visiting files to be modified. The
+actual file save needs to be performed separately."
+  (let* ((node (org-roam-node-from-id old-id))
+         (backlinks (org-roam-backlinks-get node :unique t))
+         modified-buffers)
+    (dolist (backlink backlinks)
+      (let* ((source-node (org-roam-backlink-source-node backlink))
+             (file-path (org-roam-node-file source-node)))
+        (with-current-buffer (find-file-noselect file-path)
+          (goto-char (point-min))
+          (while (re-search-forward
+                  (concat "\\[\\[id:" old-id "\\]\\(\\[\\(.*?\\)\\]\\)?\\]")
+                  nil t)
+            (replace-match (if-let* ((full-match (match-string 0))
+                                     (desc (match-string 2)))
+                               (format "[[id:%s][%s]]" new-id desc)
+                             (format "[[id:%s]]" new-id))))
+          (push (current-buffer) modified-buffers))))
+    modified-buffers))
+
+(defun org-roam-fz-change-id (&optional old-id new-id)
+  "Replace all instances of OLD-ID with NEW-ID in `org-roam' files."
+  (interactive
+   (let ((id (org-roam-node-id (org-roam-node-at-point))))
+     (list (or id (read-string "Current node ID: " id nil id))
+           (read-string "New node ID: "))))
+  (if-let* ((node (org-roam-node-from-id old-id)))
+      (let ((buffer (or (org-roam-node-visit node) (current-buffer)))
+            buffers)
+        (message "IDs: %s => %s" old-id new-id)
+
+        ;; Update the ID of the current node:
+        (if (not (eq buffer (current-buffer)))
+            (with-current-buffer buffer
+              (org-entry-put nil "ID" new-id))
+          (org-entry-put nil "ID" new-id))
+
+        ;; Update the IDs found in backlinks:
+        (setq buffers (append (org-roam-fz-replace--id old-id new-id)
+                              `(,buffer)))
+
+        ;; Preview and save.
+        ;;
+        ;; NOTE: save-some-buffers might be simpler.
+        (dolist (buffer buffers)
+          (with-current-buffer buffer
+            (when (buffer-modified-p)
+              (switch-to-buffer buffer)
+              (let ((resp (read-char-choice
+                           (format "Save %s? (y/n/s) " (buffer-name buffer))
+                           '(?y ?n ?s))))
+                (cond ((eq resp ?y)
+                       (with-current-buffer buffer
+                         (save-buffer)))
+                      ((eq resp ?s)
+                       (keyboard-quit)))))))
+        (org-roam-db-sync))
+    (warn "Node with ID %s does not exit" old-id)))
 
 ;;; Define minor mode
 

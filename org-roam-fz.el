@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.6.1
+;; Version: 0.7.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -572,30 +572,34 @@ DESC are passed from the hook and for the node being inserted."
            (message "No note found for Zettelkasten named '%s'!" org-roam-fz-zk)
          (error (error-message-string err)))))))
 
-(defun org-roam-fz--replace-id (old-id new-id)
-  "Replace OLD-ID with NEW-ID in all backlinks.
-This function returns the list of buffers visiting files to be modified. The
-actual file save needs to be performed separately."
-  (let* ((node (org-roam-node-from-id old-id))
-         (backlinks (org-roam-backlinks-get node :unique t))
-         modified-buffers)
-    (dolist (backlink backlinks)
-      (let* ((source-node (org-roam-backlink-source-node backlink))
-             (file-path (org-roam-node-file source-node)))
-        (with-current-buffer (find-file-noselect file-path)
-          (goto-char (point-min))
-          (while (re-search-forward
-                  (concat "\\[\\[id:" old-id "\\]\\(\\[\\(.*?\\)\\]\\)?\\]")
-                  nil t)
-            (replace-match (if-let* ((full-match (match-string 0))
-                                     (desc (match-string 2)))
-                               (format "[[id:%s][%s]]" new-id desc)
-                             (format "[[id:%s]]" new-id))))
-          (push (current-buffer) modified-buffers))))
-    modified-buffers))
+;; Import to Zettelkasten
 
-(defun org-roam-fz-change-id (&optional old-id new-id)
-  "Replace all instances of OLD-ID with NEW-ID in `org-roam' files."
+(defun org-roam-fz-import--replace-id (old-id new-id)
+  "Replace OLD-ID referenced via backlinks with NEW-ID.
+This function looks for the `org-node' with OLD-ID and errors out if not found.
+The return value is the list of buffers visiting files being modified. To commit
+the changes, perform buffer save separately."
+  (if-let* ((node (org-roam-node-from-id old-id)))
+      (let* ((backlinks (org-roam-backlinks-get node :unique t))
+             (ptn (concat "\\[\\[id:" old-id "\\]\\(\\[\\(.*?\\)\\]\\)?\\]"))
+             modified-buffers source-node-path)
+        (dolist (backlink backlinks)
+          (setq source-node (org-roam-backlink-source-node backlink))
+          (with-current-buffer
+              (find-file-noselect (org-roam-node-file source-node))
+            (goto-char (point-min))
+            (while (re-search-forward ptn nil t)
+              (replace-match (if-let* ((full-match (match-string 0))
+                                       (desc (match-string 2)))
+                                 (format "[[id:%s][%s]]" new-id desc)
+                               (format "[[id:%s]]" new-id))))
+            (push (current-buffer) modified-buffers)))
+        modified-buffers)
+    (error "ID %s is not associated with any `org-roam' node" old-id)))
+
+(defun org-roam-fz-import--change-id (&optional old-id new-id)
+  "Replace all instances of OLD-ID with NEW-ID in `org-roam' files.
+If OLD-ID is not given, it is set to the ID of node at point."
   (interactive
    (let ((id (org-roam-node-id (org-roam-node-at-point))))
      (list (or id (read-string "Current node ID: " id nil id))
@@ -603,8 +607,6 @@ actual file save needs to be performed separately."
   (if-let* ((node (org-roam-node-from-id old-id)))
       (let ((buffer (or (org-roam-node-visit node) (current-buffer)))
             buffers)
-        (message "IDs: %s => %s" old-id new-id)
-
         ;; Update the ID of the current node:
         (if (not (eq buffer (current-buffer)))
             (with-current-buffer buffer
@@ -612,8 +614,8 @@ actual file save needs to be performed separately."
           (org-entry-put nil "ID" new-id))
 
         ;; Update the IDs found in backlinks:
-        (setq buffers (append (org-roam-fz-replace--id old-id new-id)
-                              `(,buffer)))
+        (setq buffers (org-roam-fz-import--replace-id old-id new-id))
+        (setq buffers (append buffers `(,buffer)))
 
         ;; Preview and save.
         ;;
@@ -630,8 +632,85 @@ actual file save needs to be performed separately."
                          (save-buffer)))
                       ((eq resp ?s)
                        (keyboard-quit)))))))
-        (org-roam-db-sync))
+
+        (when buffers
+          (org-roam-db-sync)))
     (warn "Node with ID %s does not exit" old-id)))
+
+(defun org-roam-fz-import--move-note (new-loc)
+  "Move the node at point to a new directory at NEW-LOC."
+  (interactive "fNew location: ")
+  (if-let* ((node (org-roam-node-at-point))
+            (id (org-roam-node-id node))
+            (fid (org-roam-fz-fid-make id))
+            (file (buffer-file-name))
+            (parent-dir (file-name-directory file)))
+      (let* ((fid-as-str (org-roam-fz-fid--render fid 'full))
+             (new-parent (file-name-as-directory (expand-file-name new-loc))))
+        (make-directory new-parent t) ; ensure directory existence
+        (rename-file parent-dir (file-name-concat new-parent fid-as-str) 1)
+        (set-visited-file-name (file-name-concat new-parent
+                                                 fid-as-str
+                                                 (file-name-nondirectory file)))
+        (when (buffer-modified-p)
+          (save-buffer)
+          (org-roam-db-sync)))
+    (error "No file associated with this buffer")))
+
+(defcustom org-roam-fz-zettelkastens nil
+  "The list of directory paths to available Zettelkastens."
+  :type '(repeat string)
+  :group 'org-roam-fz)
+
+(defun org-roam-fz-import-note (dir)
+  "Import the note at point into a Zettelkasten at DIR.
+This function goes through the following steps:
+
+  1. Propmt the user to pick the target Zettelkasten directory
+  2. Pick a new Folgezettel ID (new, related, or follow-up)
+  3. Replace existing backlinks with the new fID
+  4. Move the note with the new fID to the directory picked first
+
+The user will be prompted a few times for input along the way."
+  (interactive (list (completing-read "Choose zettelkasten for the note: "
+                                      org-roam-fz-zettelkastens nil t)))
+  (let ((dir (expand-file-name dir))
+        zk resp fid)
+    (unless (file-directory-p dir)
+      (user-error "Error: %s is not a valid directory" dir))
+    (with-temp-buffer
+      (setq default-directory dir)
+      (org-mode)
+      (condition-case err
+          (progn
+            (hack-dir-local-variables-non-file-buffer)
+            (setq zk org-roam-fz-zk))
+        (error (message "Error: %s" err))))
+
+    (setq resp (read-char-choice "Pick (n)ew, (r)elated, or (f)ollow-up ID: "
+                                 '(?n ?r ?f)))
+    (cond ((eq resp ?n)
+           (let ((org-roam-fz-zk zk))
+             (setq fid (org-roam-fz-fid--new)))))
+    (when-let*
+        ((node (and (null fid)
+                    (org-roam-node-read
+                     nil
+                     (lambda (node)
+                       (let ((id (org-roam-node-id node))
+                             (ptn (concat "^\\([0-9]+.\\)?\\([0-9]+[a-z]+\\)*\\([0-9]+\\)?"
+                                          "-" zk "$")))
+                         (and (string-match ptn id)))))))
+         (id (org-roam-fz-fid-make (org-roam-node-id node))))
+      (setq fid (pcase resp
+                  (?f (org-roam-fz-fid--follow-up id))
+                  (?r (org-roam-fz-fid--related id)))))
+
+    (let* ((node (org-roam-node-at-point))
+           (old-id (org-roam-node-id node))
+           (new-id (org-roam-fz-fid--render fid 'full)))
+      (org-roam-fz-import--change-id old-id new-id)
+      (org-roam-fz-import--move-note dir))))
 
 ;;; Define minor mode
 

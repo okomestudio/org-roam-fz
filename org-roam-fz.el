@@ -10,22 +10,26 @@
 ;;
 ;;; License:
 ;;
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
+;; This program is free software; you can redistribute it and/or modify it under
+;; the terms of the GNU General Public License as published by the Free Software
+;; Foundation, either version 3 of the License, or (at your option) any later
+;; version.
 ;;
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
+;; This program is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+;; FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+;; details.
 ;;
-;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+;; You should have received a copy of the GNU General Public License along with
+;; this program. If not, see <https://www.gnu.org/licenses/>.
 ;;
 ;;; Commentary:
 ;;
 ;; This package provides the Folgezettel support for Org Roam.
+;;
+;; A note on terminology: Within the code base, Zettelkasten (the first letter
+;; capitalized) refers to the knowlege management method, while zettelkasten
+;; (the first letter uncapitalized) refers to a slip box/collection of notes.
 ;;
 ;;; Code:
 
@@ -37,7 +41,7 @@
   :link '(url-link "https://github.com/okomestudio/org-roam-fz/org-roam-fz.el"))
 
 (defcustom org-roam-fz-zk "default"
-  "The name of default Zettelkasten."
+  "The name of default zettelkasten."
   :type 'string
   :group 'org-roam-fz)
 
@@ -47,7 +51,7 @@
   :group 'org-roam-fz)
 
 (defcustom org-roam-fz-master-index-node-id nil
-  "Org Roam node ID of the master index for this Zettelkasten.
+  "Org Roam node ID of the master index for the current zettelkasten.
 This ID is used by `org-roam-fz-master-index-node-visit' to jump quickly
 to the master index note."
   :type 'string
@@ -141,7 +145,7 @@ This is a function that takes a single string argument ID."
   "Folgezettel ID structure.
 
 - `alnum' is the alphanumeric part of fID.
-- `zk' is the Zettelkasten name."
+- `zk' is the zettelkasten name."
   alnum zk)
 
 (defvar org-roam-fz-fid--string-regexp
@@ -154,7 +158,7 @@ This is a function that takes a single string argument ID."
        (string-match org-roam-fz-fid--string-regexp id)))
 
 (defun org-roam-fz-fid--string-parse-zk (id)
-  "Return Zettelkasten name from string ID."
+  "Return zettelkasten name from string ID."
   (and (stringp id)
        (string-match org-roam-fz-fid--string-regexp id)
        (match-string 4 id)))
@@ -535,7 +539,7 @@ DESC are passed from the hook and for the node being inserted."
 ;;; Public functions
 
 (cl-defun org-roam-fz-master-index-node-visit ()
-  "Visit the master index note for the current Zettelkasten."
+  "Visit the master index note for the current zettelkasten."
   (interactive)
   (org-roam-node-open (org-roam-node-from-id org-roam-fz-master-index-node-id)))
 
@@ -556,8 +560,8 @@ DESC are passed from the hook and for the node being inserted."
     (run-hook-with-args 'org-roam-post-node-insert-hook id desc)))
 
 (defun org-roam-fz-random-node (&optional zk)
-  "Visit a random Folgezettel note in the Zettelkasten named ZK."
-  (interactive (list (read-string "Zettelkasten name: " org-roam-fz-zk)))
+  "Visit a random Folgezettel note in the zettelkasten named ZK."
+  (interactive (list (read-string "Name of zettelkasten: " org-roam-fz-zk)))
   (let ((org-roam-fz-zk (or zk org-roam-fz-zk)))
     (condition-case err
         (org-roam-node-random
@@ -569,10 +573,10 @@ DESC are passed from the hook and for the node being inserted."
                            org-roam-fz-zk)))))
       (error
        (if (string= (error-message-string err) "Sequence cannot be empty")
-           (message "No note found for Zettelkasten named '%s'!" org-roam-fz-zk)
+           (message "No note found for the zettelkasten named '%s'!" org-roam-fz-zk)
          (error (error-message-string err)))))))
 
-;; Import to Zettelkasten
+;; Import to the zettelkasten
 
 (defun org-roam-fz-import--replace-id (old-id new-id)
   "Replace OLD-ID referenced via backlinks with NEW-ID.
@@ -658,26 +662,28 @@ If OLD-ID is not given, it is set to the ID of node at point."
     (error "No file associated with this buffer")))
 
 (defcustom org-roam-fz-zettelkastens nil
-  "The list of directory paths to available Zettelkastens."
+  "The list of directory paths to available zettelkastens."
   :type '(repeat string)
   :group 'org-roam-fz)
 
 (defun org-roam-fz-import-note (dir)
-  "Import the note at point into a Zettelkasten at DIR.
+  "Import the note at point into a zettelkasten at DIR.
 This function goes through the following steps:
 
-  1. Propmt the user to pick the target Zettelkasten directory
+  1. Prompt the user to pick the target zettelkasten directory
   2. Pick a new Folgezettel ID (new, related, or follow-up)
   3. Replace existing backlinks with the new fID
   4. Move the note with the new fID to the directory picked first
 
 The user will be prompted a few times for input along the way."
-  (interactive (list (completing-read "Choose zettelkasten for the note: "
+  (interactive (list (completing-read "Choose the zettelkasten for this note: "
                                       org-roam-fz-zettelkastens nil t)))
   (let ((dir (expand-file-name dir))
         zk resp fid)
     (unless (file-directory-p dir)
       (user-error "Error: %s is not a valid directory" dir))
+
+    ;; Set the name of target zettelkasten to `zk':
     (with-temp-buffer
       (setq default-directory dir)
       (org-mode)

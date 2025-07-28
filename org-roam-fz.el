@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.7.1
+;; Version: 0.7.2
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -655,16 +655,17 @@ If OLD-ID is not given, it is set to the ID of node at point."
         (rename-file parent-dir (file-name-concat new-parent fid-as-str) 1)
         (set-visited-file-name (file-name-concat new-parent
                                                  fid-as-str
-                                                 (file-name-nondirectory file)))
-        (when (buffer-modified-p)
-          (save-buffer)
-          (org-roam-db-sync)))
+                                                 (file-name-nondirectory file))))
     (error "No file associated with this buffer")))
 
 (defcustom org-roam-fz-zettelkastens nil
   "The list of directory paths to available zettelkastens."
   :type '(repeat string)
   :group 'org-roam-fz)
+
+(defvar org-roam-fz-after-import-note-hook nil
+  "A hook runs after `org-roam-fz-import-note'.
+The hook takes the import node as an argument.")
 
 (defun org-roam-fz-import-note (dir)
   "Import the note at point into a zettelkasten at DIR.
@@ -712,11 +713,16 @@ The user will be prompted a few times for input along the way."
                   (?f (org-roam-fz-fid--follow-up id))
                   (?r (org-roam-fz-fid--related id)))))
 
-    (let* ((node (org-roam-node-at-point))
+    (let* ((node (save-excursion
+                   (goto-char (point-min)) (org-roam-node-at-point)))
            (old-id (org-roam-node-id node))
            (new-id (org-roam-fz-fid--render fid 'full)))
       (org-roam-fz-import--change-id old-id new-id)
-      (org-roam-fz-import--move-note dir))))
+      (org-roam-fz-import--move-note dir)
+      (run-hook-with-args org-roam-fz-after-import-note-hook node)
+      (when (buffer-modified-p)
+        (save-buffer)
+        (org-roam-db-sync)))))
 
 ;;; Define minor mode
 

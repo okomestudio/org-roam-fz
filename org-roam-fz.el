@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.7.2
+;; Version: 0.8.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -539,9 +539,21 @@ DESC are passed from the hook and for the node being inserted."
 ;;; Public functions
 
 (cl-defun org-roam-fz-master-index-node-visit ()
-  "Visit the master index note for the current zettelkasten."
+  "Visit the master index note for the active zettelkasten.
+When the link to the current note exists in the master index note, the function
+jumps to it."
   (interactive)
-  (org-roam-node-open (org-roam-node-from-id org-roam-fz-master-index-node-id)))
+  (if-let* ((node (and org-roam-fz-master-index-node-id
+                       (org-roam-node-from-id
+                        org-roam-fz-master-index-node-id)))
+            (this-node (org-roam-node-at-point)))
+      (progn
+        (org-roam-node-visit node)
+        (when-let* ((pattern (format "\\[\\[id:%s\\]\\(\\[[^]]+\\]\\)?\\]"
+                                     (org-roam-node-id this-node))))
+          (goto-char (point-min))
+          (re-search-forward pattern nil t)))
+    (message "Master index node for this node not found")))
 
 (cl-defun org-roam-fz-refresh-link ()
   "Refresh hyperlink at point with node title."

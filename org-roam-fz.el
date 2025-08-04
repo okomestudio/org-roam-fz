@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.8.1
+;; Version: 0.8.2
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -730,11 +730,16 @@ The user will be prompted a few times for input along the way."
            (old-id (org-roam-node-id node))
            (new-id (org-roam-fz-fid--render fid 'full)))
       (org-roam-fz-import--change-id old-id new-id)
+
       (org-roam-fz-import--move-note dir)
-      (run-hook-with-args org-roam-fz-after-import-note-hook node)
       (when (buffer-modified-p)
-        (save-buffer)
-        (org-roam-db-sync)))))
+        (save-buffer))
+      (org-roam-db-sync)
+
+      (run-hook-with-args 'org-roam-fz-after-import-note-hook
+                          (org-roam-node-from-id new-id))
+      (when (buffer-modified-p)
+        (save-buffer)))))
 
 ;;; Define minor mode
 

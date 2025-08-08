@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.8.2
+;; Version: 0.9.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -50,6 +50,11 @@
   :type 'string
   :group 'org-roam-fz)
 
+(defcustom org-roam-fz-tags-default nil
+  "List of default tags for notes in the current zettelkasten."
+  :type '(list string)
+  :group 'org-roam-fz)
+
 (defcustom org-roam-fz-master-index-node-id nil
   "Org Roam node ID of the master index for the current zettelkasten.
 This ID is used by `org-roam-fz-master-index-node-visit' to jump quickly
@@ -60,11 +65,6 @@ to the master index note."
 (defcustom org-roam-fz-add-tags-in-heading t
   "Set t to add tags to heading on insert."
   :type 'boolean
-  :group 'org-roam-fz)
-
-(defcustom org-roam-fz-add-tags-exclude nil
-  "List of tags to exclude on `org-roam-fz-add-tags-in-heading'."
-  :type '(list string)
   :group 'org-roam-fz)
 
 (defcustom org-roam-fz-overlays-render-fid
@@ -531,7 +531,7 @@ DESC are passed from the hook and for the node being inserted."
                                                          (line-end-position))))
     (let* ((node (org-roam-node-from-id id))
            (tags (cl-set-difference (org-roam-node-tags node)
-                                    org-roam-fz-add-tags-exclude
+                                    org-roam-fz-tags-default
                                     :test #'equal)))
       (when tags
         (insert (format " :%s:" (string-join tags ":")))))))
@@ -613,25 +613,18 @@ the changes, perform buffer save separately."
         modified-buffers)
     (error "ID %s is not associated with any `org-roam' node" old-id)))
 
-(defun org-roam-fz-import--change-id (&optional old-id new-id)
-  "Replace all instances of OLD-ID with NEW-ID in `org-roam' files.
-If OLD-ID is not given, it is set to the ID of node at point."
-  (interactive
-   (let ((id (org-roam-node-id (org-roam-node-at-point))))
-     (list (or id (read-string "Current node ID: " id nil id))
-           (read-string "New node ID: "))))
+(defun org-roam-fz-import--change-id (old-id new-id)
+  "Replace all instances of OLD-ID with NEW-ID in `org-roam' files."
   (if-let* ((node (org-roam-node-from-id old-id)))
-      (let ((buffer (or (org-roam-node-visit node) (current-buffer)))
+      (let ((buffer (find-buffer-visiting (org-roam-node-file node)))
             buffers)
         ;; Update the ID of the current node:
-        (if (not (eq buffer (current-buffer)))
-            (with-current-buffer buffer
-              (org-entry-put nil "ID" new-id))
-          (org-entry-put nil "ID" new-id))
+        (with-current-buffer buffer
+          (org-entry-put (point-min) "ID" new-id))
 
         ;; Update the IDs found in backlinks:
-        (setq buffers (org-roam-fz-import--replace-id old-id new-id))
-        (setq buffers (append buffers `(,buffer)))
+        (setq buffers (append (org-roam-fz-import--replace-id old-id new-id)
+                              `(,buffer)))
 
         ;; Preview and save.
         ;;
@@ -639,66 +632,85 @@ If OLD-ID is not given, it is set to the ID of node at point."
         (dolist (buffer buffers)
           (with-current-buffer buffer
             (when (buffer-modified-p)
-              (switch-to-buffer buffer)
-              (let ((resp (read-char-choice
-                           (format "Save %s? (y/n/s) " (buffer-name buffer))
-                           '(?y ?n ?s))))
-                (cond ((eq resp ?y)
-                       (with-current-buffer buffer
-                         (save-buffer)))
-                      ((eq resp ?s)
-                       (keyboard-quit)))))))
-
-        (when buffers
-          (org-roam-db-sync)))
+              ;; TODO(2025-08-07): Optionally prompt the user to save buffer or
+              ;; not, using `read-char-choice'. The initial attempt failed due
+              ;; to the function not reading input character reliably.
+              (save-buffer)
+              (org-roam-db-update-file (buffer-file-name buffer))))))
     (warn "Node with ID %s does not exit" old-id)))
-
-(defun org-roam-fz-import--move-note (new-loc)
-  "Move the node at point to a new directory at NEW-LOC."
-  (interactive "fNew location: ")
-  (if-let* ((node (org-roam-node-at-point))
-            (id (org-roam-node-id node))
-            (fid (org-roam-fz-fid-make id))
-            (file (buffer-file-name))
-            (parent-dir (file-name-directory file)))
-      (let* ((fid-as-str (org-roam-fz-fid--render fid 'full))
-             (new-parent (file-name-as-directory (expand-file-name new-loc))))
-        (make-directory new-parent t) ; ensure directory existence
-        (rename-file parent-dir (file-name-concat new-parent fid-as-str) 1)
-        (set-visited-file-name (file-name-concat new-parent
-                                                 fid-as-str
-                                                 (file-name-nondirectory file))))
-    (error "No file associated with this buffer")))
 
 (defcustom org-roam-fz-zettelkastens nil
   "The list of directory paths to available zettelkastens."
   :type '(repeat string)
   :group 'org-roam-fz)
 
-(defvar org-roam-fz-after-import-note-hook nil
+(defun org-roam-fz-zettelkastens--choose (&optional prompt)
+  "Choose zettelkasten from `org-roam-fz-zettelkastens'.
+Provide PROMPT string to override the default prompt message."
+  (completing-read (or prompt "Choose a zettelkasten: ")
+                   org-roam-fz-zettelkastens nil t))
+
+(defun org-roam-fz-move-note (&optional node dir-zk)
+  "Move NODE to the zettelkasten at directory DIR-ZK."
+  (interactive (list (org-roam-node-at-point)
+                     (org-roam-fz-zettelkastens--choose)))
+  (if-let* ((id (org-roam-node-id node))
+            (fid (org-roam-fz-fid-make id))
+            (file (org-roam-node-file node))
+            (parent-dir (file-name-directory file)))
+      (let* ((fid-as-str (org-roam-fz-fid--render fid 'full))
+             (new-parent (file-name-as-directory (expand-file-name dir-zk)))
+             (new-file (file-name-concat new-parent
+                                         fid-as-str
+                                         (file-name-nondirectory file))))
+        (make-directory new-parent t) ; ensure directory existence
+        (org-roam-db-clear-file file)
+        (rename-file parent-dir (file-name-concat new-parent fid-as-str) 1)
+        (when-let* ((buffer (find-buffer-visiting file)))
+          (with-current-buffer buffer
+            (set-visited-file-name new-file)
+            (revert-buffer :ignore-auto :noconfirm)))
+        (org-roam-db-update-file new-file))
+    (error "No file associated with the node")))
+
+(defun org-roam-fz-after-import-note--add-tags (node)
+  "Add filetags to NODE."
+  (when-let* ((buffer (find-buffer-visiting (org-roam-node-file node))))
+    (with-current-buffer buffer
+      (org-roam-set-keyword
+       "filetags"
+       (org-make-tag-string
+        (seq-uniq
+         (append org-roam-fz-tags-default
+                 (split-string (or (org-roam--get-keyword "filetags") "")
+                               ":" t))))))))
+
+(defvar org-roam-fz-after-import-note-hook
+  '(org-roam-fz-after-import-note--add-tags)
   "A hook runs after `org-roam-fz-import-note'.
 The hook takes the import node as an argument.")
 
-(defun org-roam-fz-import-note (dir)
-  "Import the note at point into a zettelkasten at DIR.
+(defun org-roam-fz-import-note (dir-zk)
+  "Import the note at point into the zettelkasten at directory DIR-ZK.
 This function goes through the following steps:
 
-  1. Prompt the user to pick the target zettelkasten directory
+  1. Prompt the user for a zettelkasten directory
   2. Pick a new Folgezettel ID (new, related, or follow-up)
   3. Replace existing backlinks with the new fID
-  4. Move the note with the new fID to the directory picked first
+  4. Move the note to the directory picked in (1)
 
 The user will be prompted a few times for input along the way."
-  (interactive (list (completing-read "Choose the zettelkasten for this note: "
-                                      org-roam-fz-zettelkastens nil t)))
-  (let ((dir (expand-file-name dir))
-        zk resp fid)
-    (unless (file-directory-p dir)
-      (user-error "Error: %s is not a valid directory" dir))
+  (interactive (list (org-roam-fz-zettelkastens--choose)))
+  (let ((dir-zk (expand-file-name dir-zk))
+        (node (save-excursion
+                (goto-char (point-min)) (org-roam-node-at-point)))
+        zk fid)
+    (unless (file-directory-p dir-zk)
+      (user-error "Error: %s is not a valid directory" dir-zk))
 
     ;; Set the name of target zettelkasten to `zk':
     (with-temp-buffer
-      (setq default-directory dir)
+      (setq default-directory dir-zk)
       (org-mode)
       (condition-case err
           (progn
@@ -706,40 +718,38 @@ The user will be prompted a few times for input along the way."
             (setq zk org-roam-fz-zk))
         (error (message "Error: %s" err))))
 
-    (setq resp (read-char-choice "Pick (n)ew, (r)elated, or (f)ollow-up ID: "
-                                 '(?n ?r ?f)))
-    (cond ((eq resp ?n)
-           (let ((org-roam-fz-zk zk))
-             (setq fid (org-roam-fz-fid--new)))))
-    (when-let*
-        ((node (and (null fid)
-                    (org-roam-node-read
-                     nil
-                     (lambda (node)
-                       (let ((id (org-roam-node-id node))
-                             (ptn (concat "^\\([0-9]+.\\)?\\([0-9]+[a-z]+\\)*\\([0-9]+\\)?"
-                                          "-" zk "$")))
-                         (and (string-match ptn id)))))))
-         (id (org-roam-fz-fid-make (org-roam-node-id node))))
-      (setq fid (pcase resp
+    ;; Generate the fID:
+    (setq fid
+          (let* ((resp (read-char-choice
+                        "Pick (n)ew, (r)elated, or (f)ollow-up ID: "
+                        '(?n ?r ?f))))
+            (if (eq resp ?n)
+                (let ((org-roam-fz-zk zk))
+                  (org-roam-fz-fid--new))
+              (when-let*
+                  ((node (org-roam-node-read
+                          nil
+                          (lambda (node)
+                            (when-let* ((id (org-roam-node-id node)))
+                              (and (org-roam-fz-fid--string-parsable-p id)
+                                   (equal (org-roam-fz-fid--string-parse-zk id)
+                                          zk))))))
+                   (id (org-roam-fz-fid-make (org-roam-node-id node))))
+                (pcase resp
                   (?f (org-roam-fz-fid--follow-up id))
-                  (?r (org-roam-fz-fid--related id)))))
+                  (?r (org-roam-fz-fid--related id)))))))
+    (when (null fid)
+      (error "Cannot generate fID"))
 
-    (let* ((node (save-excursion
-                   (goto-char (point-min)) (org-roam-node-at-point)))
-           (old-id (org-roam-node-id node))
-           (new-id (org-roam-fz-fid--render fid 'full)))
+    (let ((old-id (org-roam-node-id node))
+          (new-id (org-roam-fz-fid--render fid 'full)))
       (org-roam-fz-import--change-id old-id new-id)
 
-      (org-roam-fz-import--move-note dir)
-      (when (buffer-modified-p)
-        (save-buffer))
-      (org-roam-db-sync)
+      (setq node (org-roam-node-from-id new-id))
+      (org-roam-fz-move-note node dir-zk)
 
-      (run-hook-with-args 'org-roam-fz-after-import-note-hook
-                          (org-roam-node-from-id new-id))
-      (when (buffer-modified-p)
-        (save-buffer)))))
+      (setq node (org-roam-node-from-id new-id))
+      (run-hook-with-args 'org-roam-fz-after-import-note-hook node))))
 
 ;;; Define minor mode
 

@@ -16,7 +16,7 @@
 (setq org-roam-fz-zk "zktest")
 (defun setup-org-roam-db ()
   "Set up Org Roam database using the test data."
-  (setq org-roam-directory "./tests/zktest/")
+  (setq org-roam-directory (expand-file-name "./tests/zktest/"))
   ;; NOTE: The cache database will be found under
   ;; .eldev/version/emacs-dir.
   (org-roam-db-sync))
@@ -251,8 +251,8 @@ ALNUM is required, but ZK is optional when `org-roam-fz-zk' is assumed."
  (it "renders fID correctly"
      (pcase-dolist
          (`(,init ,expected)
-          `((,(to-fid "12.3a" "nondefault") "[12.3a(nondefault)] ")
-            (,(to-fid "12.3a") "[12.3a] ")))
+          `((,(to-fid "12.3a" "nondefault") "[12.3a(nondefault)]")
+            (,(to-fid "12.3a") "[12.3a]")))
        (setq fid (org-roam-fz-fid-make init))
        (expect (org-roam-fz-overlays-render-fid-default fid)
                :to-equal expected))))

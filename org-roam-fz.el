@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.9.2
+;; Version: 0.10.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -640,15 +640,17 @@ the changes, perform buffer save separately."
     (warn "Node with ID %s does not exit" old-id)))
 
 (defcustom org-roam-fz-zettelkastens nil
-  "The list of directory paths to available zettelkastens."
-  :type '(repeat string)
+  "The alist mapping a zettelkasten to the path for its containing directory."
+  :type '(repeat (cons string string))
   :group 'org-roam-fz)
 
 (defun org-roam-fz-zettelkastens--choose (&optional prompt)
-  "Choose zettelkasten from `org-roam-fz-zettelkastens'.
+  "Choose a zettelkasten from `org-roam-fz-zettelkastens'.
 Provide PROMPT string to override the default prompt message."
-  (completing-read (or prompt "Choose a zettelkasten: ")
-                   org-roam-fz-zettelkastens nil t))
+  (cdr (assoc-string
+        (completing-read (or prompt "Choose a zettelkasten: ")
+                         (mapcar #'car org-roam-fz-zettelkastens) nil t)
+        org-roam-fz-zettelkastens)))
 
 (defun org-roam-fz-move-note (&optional node dir-zk)
   "Move NODE to the zettelkasten at directory DIR-ZK."
@@ -690,6 +692,34 @@ Provide PROMPT string to override the default prompt message."
   "A hook runs after `org-roam-fz-import-note'.
 The hook takes the import node as an argument.")
 
+(defun org-roam-fz-pick-available-fid ()
+  "Pick a free fID in the current zettelkasten."
+  (interactive)
+  (let ((prompt
+         (format "Pick (n)ew, (r)elated, (f)ollow-up fID in '%s' or (q)uit: "
+                 org-roam-fz-zk))
+        (choices '(?n ?r ?f ?q))
+        resp fid)
+    (while (not (member resp choices))
+      (let ((current-input-method nil))
+        (setq resp (read-char-choice prompt choices)))
+      (if (eq resp ?n)
+          (setq fid (org-roam-fz-fid--new))
+        (when-let*
+            ((_ (not (eq resp ?q)))
+             (node (org-roam-node-read
+                    nil
+                    (lambda (node)
+                      (when-let* ((id (org-roam-node-id node)))
+                        (and (org-roam-fz-fid--string-parsable-p id)
+                             (equal (org-roam-fz-fid--string-parse-zk id)
+                                    org-roam-fz-zk))))))
+             (id (org-roam-fz-fid-make (org-roam-node-id node))))
+          (setq fid (pcase resp
+                      (?f (org-roam-fz-fid--follow-up id))
+                      (?r (org-roam-fz-fid--related id)))))))
+    fid))
+
 (defun org-roam-fz-import-note (dir-zk)
   "Import the note at point into the zettelkasten at directory DIR-ZK.
 This function goes through the following steps:
@@ -719,25 +749,7 @@ The user will be prompted a few times for input along the way."
         (error (message "Error: %s" err))))
 
     ;; Generate the fID:
-    (setq fid
-          (let* ((resp (read-char-choice
-                        "Pick (n)ew, (r)elated, or (f)ollow-up ID: "
-                        '(?n ?r ?f))))
-            (if (eq resp ?n)
-                (let ((org-roam-fz-zk zk))
-                  (org-roam-fz-fid--new))
-              (when-let*
-                  ((node (org-roam-node-read
-                          nil
-                          (lambda (node)
-                            (when-let* ((id (org-roam-node-id node)))
-                              (and (org-roam-fz-fid--string-parsable-p id)
-                                   (equal (org-roam-fz-fid--string-parse-zk id)
-                                          zk))))))
-                   (id (org-roam-fz-fid-make (org-roam-node-id node))))
-                (pcase resp
-                  (?f (org-roam-fz-fid--follow-up id))
-                  (?r (org-roam-fz-fid--related id)))))))
+    (setq fid (let ((org-roam-fz-zk zk)) (org-roam-fz-pick-available-fid)))
     (when (null fid)
       (error "Cannot generate fID"))
 
@@ -750,6 +762,22 @@ The user will be prompted a few times for input along the way."
 
       (setq node (org-roam-node-from-id new-id))
       (run-hook-with-args 'org-roam-fz-after-import-note-hook node))))
+
+(defun org-roam-fz-change-fid ()
+  "Change fID of the current node."
+  (interactive)
+  (if-let* ((node (save-excursion
+                    (goto-char (point-min)) (org-roam-node-at-point)))
+            (fid (org-roam-fz-pick-available-fid))
+            (old-id (org-roam-node-id node))
+            (new-id (org-roam-fz-fid--render fid 'full)))
+      (progn
+        (org-roam-fz-import--change-id old-id new-id)
+        (org-roam-fz-move-note (org-roam-node-from-id new-id)
+                               (cdr (assoc-string
+                                     org-roam-fz-zk
+                                     org-roam-fz-zettelkastens))))
+    (error "Cannot generate fID")))
 
 ;;; Define minor mode
 

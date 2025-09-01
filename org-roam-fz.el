@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.10.1
+;; Version: 0.10.2
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -699,15 +699,16 @@ The hook takes the import node as an argument.")
          (format "Pick (n)ew, (r)elated, (f)ollow-up fID in '%s' or (q)uit: "
                  org-roam-fz-zk))
         (choices '(?n ?r ?f ?q))
-        resp fid)
+        resp)
+    ;; This while loop is to work around the issue of `read-char-choice'
+    ;; accepting a non-CHARS character while input method is active.
     (while (not (member resp choices))
-      (let ((current-input-method nil))
-        (setq resp (read-char-choice prompt choices)))
+      (setq resp (read-char-choice prompt choices)))
+    (unless (eq resp ?q)
       (if (eq resp ?n)
-          (setq fid (org-roam-fz-fid--new))
+          (org-roam-fz-fid--new)
         (when-let*
-            ((_ (not (eq resp ?q)))
-             (node (org-roam-node-read
+            ((node (org-roam-node-read
                     nil
                     (lambda (node)
                       (when-let* ((id (org-roam-node-id node)))
@@ -715,10 +716,9 @@ The hook takes the import node as an argument.")
                              (equal (org-roam-fz-fid--string-parse-zk id)
                                     org-roam-fz-zk))))))
              (id (org-roam-fz-fid-make (org-roam-node-id node))))
-          (setq fid (pcase resp
-                      (?f (org-roam-fz-fid--follow-up id))
-                      (?r (org-roam-fz-fid--related id)))))))
-    fid))
+          (pcase resp
+            (?f (org-roam-fz-fid--follow-up id))
+            (?r (org-roam-fz-fid--related id))))))))
 
 (defun org-roam-fz-import-note (dir-zk)
   "Import the note at point into the zettelkasten at directory DIR-ZK.

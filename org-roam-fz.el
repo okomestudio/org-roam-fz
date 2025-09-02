@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.10.2
+;; Version: 0.11.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -40,26 +40,12 @@
   :group 'extensions
   :link '(url-link "https://github.com/okomestudio/org-roam-fz/org-roam-fz.el"))
 
-(defcustom org-roam-fz-zk "default"
-  "The name of default zettelkasten."
-  :type 'string
-  :group 'org-roam-fz)
-
-(defcustom org-roam-fz-target-filename "${zk}/${id}/${slug}.org"
-  "Filename for the new note."
-  :type 'string
-  :group 'org-roam-fz)
+(defvar org-roam-fz-zk 'default
+  "The name of the zettelkasten.")
 
 (defcustom org-roam-fz-tags-default nil
   "List of default tags for notes in the current zettelkasten."
   :type '(list string)
-  :group 'org-roam-fz)
-
-(defcustom org-roam-fz-master-index-node-id nil
-  "Org Roam node ID of the master index for the current zettelkasten.
-This ID is used by `org-roam-fz-master-index-node-visit' to jump quickly
-to the master index note."
-  :type 'string
   :group 'org-roam-fz)
 
 (defcustom org-roam-fz-add-tags-in-heading t
@@ -85,49 +71,67 @@ This is a function that takes a single string argument ID."
   :type '(choice 'before-string 'after-string)
   :group 'org-roam-fz)
 
-(defcustom org-roam-fz-capt-follow-up-header
-  ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
-  "Header for the follow-up note capture template."
-  :type 'string
-  :group 'org-roam-fz)
-
-(defcustom org-roam-fz-capt-follow-up-template
-  "%?\n--------\n- Previous: ${backlink}\n--------\n- See ... for ..."
-  "Template string or function for the follow-up note capture template."
-  :type '(choice function string)
-  :group 'org-roam-fz)
-
-(defcustom org-roam-fz-capt-new-header
-  ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
-  "Header for the new-topic note capture template."
-  :type 'string
-  :group 'org-roam-fz)
-
-(defcustom org-roam-fz-capt-new-template
-  "%?\n--------\n- See ... for ..."
-  "Template string or function for the new-topic note capture template."
-  :type '(choice function string)
-  :group 'org-roam-fz)
-
-(defcustom org-roam-fz-capt-related-header
-  ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
-  "Header for the related-topic note capture template."
-  :type 'string
-  :group 'org-roam-fz)
-
-(defcustom org-roam-fz-capt-related-template
-  "%?\n--------\n- See ... for ..."
-  "Template string or function for the related-topic note capture template."
-  :type '(choice function string)
-  :group 'org-roam-fz)
-
 (defface org-roam-fz-overlay
   `((t :inherit fixed-pitch
        :foreground ,(face-attribute 'shadow :foreground)
        :background ,(face-attribute 'shadow :background)))
   "Font face used for fID overlays.")
 
+;;; Zettelkastens (as Slip Boxes) Utility
+
+(defun org-roam-fz-zk-dir--expand (zk-dir)
+  "Expand ZK-DIR to its full path."
+  (expand-file-name
+   (if (file-name-absolute-p zk-dir)
+       zk-dir
+     (file-name-concat org-roam-directory zk-dir))))
+
+(defun org-roam-fz-zettelkastens--parse (&optional zettelkastens)
+  "TBD."
+  (interactive)
+  (pcase-dolist (`(,zk . ,vars) (or zettelkastens org-roam-fz-zettelkastens))
+    (if-let* ((dir (and (stringp (alist-get 'zk-dir vars))
+                        (org-roam-fz-zk-dir--expand (alist-get 'zk-dir vars)))))
+        (let ((vs `((org-roam-fz-zk . ,zk))))
+          (pcase-dolist (`(,k . ,v) vars)
+            (push (cons (intern (concat "org-roam-fz-" (symbol-name k))) v) vs))
+          (dir-locals-set-class-variables zk `((org-mode . ,vs)))
+          (dir-locals-set-directory-class dir zk))
+      (warn "Must set zk-dir"))))
+
+(defun org-roam-fz-zk-dir (&optional zk)
+  "The directory path of the zettelkasten ZK.
+The optional ZK defaults to `org-roam-fz-zk',"
+  (let ((zk (or zk org-roam-fz-zk)))
+    (org-roam-fz-zk-dir--expand
+     (or (alist-get 'zk-dir (alist-get zk org-roam-fz-zettelkastens))
+         (symbol-name zk)))))
+
+(defun org-roam-fz-zettelkastens--choose (&optional prompt)
+  "Choose a zettelkasten from `org-roam-fz-zettelkastens'.
+The optional PROMPT string overrides the default message."
+  (if-let* ((candidates (mapcar #'car org-roam-fz-zettelkastens)))
+      (intern (completing-read (or prompt "Choose a zettelkasten: ")
+                               candidates nil t))
+    org-roam-fz-zk))
+
+(defcustom org-roam-fz-zettelkastens nil
+  "The alist mapping zettelkasten to its directory."
+  :type '(repeat (cons symbol (repeat (cons symbol string))))
+  :group 'org-roam-fz)
+
 ;;; Structures
+
+(cl-defmethod org-roam-node-fid ((node org-roam-node))
+  "Access fID of NODE via struct CL-X."
+  (and (org-roam-fz-fid--string-parsable-p (org-roam-node-id node))
+       (org-roam-node-id node)))
+
+(cl-defmethod org-roam-node-zk ((node org-roam-node))
+  "Access zettelkasten name of NODE via struct CL-X."
+  (and (org-roam-fz-fid--string-parsable-p (org-roam-node-id node))
+       (org-roam-fz-fid--render (org-roam-fz-fid-make (org-roam-node-id node))
+                                'zk)))
 
 (cl-defstruct
     (org-roam-fz-fid
@@ -366,14 +370,43 @@ IDs are extracted from link paths."
   (org-roam-fz-overlays-remove)
   (org-roam-fz-overlays-add))
 
-;;; Structure Methods
+;;; Org Roam Capture Template
 
-(cl-defmethod org-roam-node-fid ((node org-roam-node))
-  "Access fID of NODE via struct CL-X."
-  (and (org-roam-fz-fid--string-parsable-p (org-roam-node-id node))
-       (org-roam-node-id node)))
+(defcustom org-roam-fz-capt-follow-up-header
+  ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
+  "Header for the follow-up note capture template."
+  :type 'string
+  :group 'org-roam-fz)
 
-;;; Functions to expose for Org Roam capture template
+(defcustom org-roam-fz-capt-follow-up-template
+  "%?\n--------\n- Previous: ${backlink}\n--------\n- See ... for ..."
+  "Template string or function for the follow-up note capture template."
+  :type '(choice function string)
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-capt-new-header
+  ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
+  "Header for the new-topic note capture template."
+  :type 'string
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-capt-new-template
+  "%?\n--------\n- See ... for ..."
+  "Template string or function for the new-topic note capture template."
+  :type '(choice function string)
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-capt-related-header
+  ":PROPERTIES:\n:ID: ${id}\n:END:\n#+title: ${title}\n\n"
+  "Header for the related-topic note capture template."
+  :type 'string
+  :group 'org-roam-fz)
+
+(defcustom org-roam-fz-capt-related-template
+  "%?\n--------\n- See ... for ..."
+  "Template string or function for the related-topic note capture template."
+  :type '(choice function string)
+  :group 'org-roam-fz)
 
 (cl-defun org-roam-fz-prepare-capture (mode)
   "Use this as a function template in a capture template.
@@ -440,9 +473,10 @@ MODE is one of `new', `follow-up', and `related'."
           (and (org-roam-fz-fid--string-parsable-p id)
                (org-roam-fz-fid-make id))))))
 
-(cl-defun org-roam-fz-fid--new ()
-  "Find an unused new fID."
-  (let ((fid (org-roam-fz-fid-make (format "1.1-%s" org-roam-fz-zk))))
+(cl-defun org-roam-fz-fid--new (&optional zk)
+  "Find an unused new fID in the zettelkasten ZK.
+If not given, ZK defaults to `org-roam-fz-zk'."
+  (let ((fid (org-roam-fz-fid-make (format "1.1-%s" (or zk org-roam-fz-zk)))))
     (while (org-roam-fz-fid--exists fid)
       (setq fid (org-roam-fz-fid--msd-inc fid)))
     fid))
@@ -461,56 +495,79 @@ MODE is one of `new', `follow-up', and `related'."
     (setq fid (org-roam-fz-fid--lsd-inc fid)))
   fid)
 
-(defun org-roam-fz-capt-follow-up (keys description &rest rest)
-  "Get the capture template for the follow-up note.
-KEYS and DESCRIPTION are string. REST items are spliced at the end. Use
-custom variables `org-roam-fz-capt-*' to control output."
-  `(,keys
-    ,description
-    plain
-    (function ,(if (functionp org-roam-fz-capt-follow-up-template)
-                   org-roam-fz-capt-follow-up-template
-                 (lambda ()
-                   (org-roam-fz-prepare-capture 'follow-up)
-                   org-roam-fz-capt-follow-up-template)))
-    :target (file+head ,org-roam-fz-target-filename
-                       ,org-roam-fz-capt-follow-up-header)
-    :unnarrowed t
-    ,@rest))
+(cl-defun org-roam-fz-capt--merge (templates)
+  "Merge TEMPLATES to the buffer-local `org-roam-capture-templates'.
+The TEMPLATES and `org-roam-capture-templates' are each sorted by their
+keys (i.e., the CAR of each element), then merged and saved to
+`org-roam-capture-templates'.
 
-(defun org-roam-fz-capt-new (keys description &rest rest)
-  "Get the capture template for the new topic note.
-KEYS and DESCRIPTION are string. REST items are spliced at the end. Use
-custom variables `org-roam-fz-capt-*' to control output."
-  `(,keys
-    ,description
-    plain
-    (function ,(if (functionp org-roam-fz-capt-new-template)
-                   org-roam-fz-capt-new-template
-                 (lambda ()
-                   (org-roam-fz-prepare-capture 'new)
-                   org-roam-fz-capt-new-template)))
-    :target (file+head ,org-roam-fz-target-filename
-                       ,org-roam-fz-capt-new-header)
-    :unnarrowed t
-    ,@rest))
+An element like `(KEY nil)' in TEMPLATES will remove the entry for KEY.
 
-(defun org-roam-fz-capt-related (keys description &rest rest)
-  "Get the capture template for the related topic note.
-KEYS and DESCRIPTION are string. REST items are spliced at the end. Use
-custom variables `org-roam-fz-capt-*' to control output."
-  `(,keys
-    ,description
-    plain
-    (function ,(if (functionp org-roam-fz-capt-related-template)
-                   org-roam-fz-capt-related-template
-                 (lambda ()
-                   (org-roam-fz-prepare-capture 'related)
-                   org-roam-fz-capt-related-template)))
-    :target (file+head ,org-roam-fz-target-filename
-                       ,org-roam-fz-capt-related-header)
-    :unnarrowed t
-    ,@rest))
+See the documentation for `org-roam-capture-templates' for the template format."
+  (unless (local-variable-p 'org-roam-capture-templates)
+    (let* ((capts (make-local-variable 'org-roam-capture-templates))
+           (old-items (sort (symbol-value capts)
+                            :lessp (lambda (x y) (string< (car x) (car y)))))
+           (new-items (sort templates
+                            (lambda (x y) (string< (car x) (car y)))))
+           result)
+      (while (and old-items new-items)
+        (setq result (if (string< (caar old-items) (caar new-items))
+                         (append result (list (pop old-items)))
+                       (if (string= (caar old-items) (caar new-items))
+                           (progn
+                             (pop old-items)
+                             (append result (list (pop new-items))))
+                         (append result (list (pop new-items)))))))
+      (setq result (append result old-items new-items))
+      (set capts (seq-filter (lambda (it) (cadr it)) result)))))
+
+(defvar org-roam-fz-target-filename "${id}/${slug}.org"
+  "Filename for the new note.")
+
+(defcustom org-roam-fz-capt-extra nil
+  "Extra capture templates to merge with `org-roam-capture-template'."
+  :type '(repeat (cons string string))
+  :group 'org-roam-fz)
+
+(cl-defun org-roam-fz-capt-bind ()
+  "Prepare the `org-roam' capture template for `org-roam-fz'.
+Use `org-roam-fz-capt-extra' to add extra template entries. This function binds
+`org-roam-capture-template' as a buffer-local variable."
+  (when (bound-and-true-p org-roam-fz-mode)
+    (org-roam-fz-capt--merge
+     `(,@org-roam-fz-capt-extra
+       ("z" ,(format "In the zettelkasten (%s) ..." org-roam-fz-zk))
+       ("zf" "... add a follow-up topic" plain
+        (function ,(if (functionp org-roam-fz-capt-follow-up-template)
+                       org-roam-fz-capt-follow-up-template
+                     (lambda ()
+                       (org-roam-fz-prepare-capture 'follow-up)
+                       org-roam-fz-capt-follow-up-template)))
+        :target (file+head ,(file-name-concat (org-roam-fz-zk-dir)
+                                              org-roam-fz-target-filename)
+                           ,org-roam-fz-capt-follow-up-header)
+        :unnarrowed t)
+       ("zn" "... add a new topic" plain
+        (function ,(if (functionp org-roam-fz-capt-new-template)
+                       org-roam-fz-capt-new-template
+                     (lambda ()
+                       (org-roam-fz-prepare-capture 'new)
+                       org-roam-fz-capt-new-template)))
+        :target (file+head ,(file-name-concat (org-roam-fz-zk-dir)
+                                              org-roam-fz-target-filename)
+                           ,org-roam-fz-capt-new-header)
+        :unnarrowed t)
+       ("zr" "... add a related topic" plain
+        (function ,(if (functionp org-roam-fz-capt-related-template)
+                       org-roam-fz-capt-related-template
+                     (lambda ()
+                       (org-roam-fz-prepare-capture 'related)
+                       org-roam-fz-capt-related-template)))
+        :target (file+head ,(file-name-concat (org-roam-fz-zk-dir)
+                                              org-roam-fz-target-filename)
+                           ,org-roam-fz-capt-related-header)
+        :unnarrowed t)))))
 
 (cl-defun org-roam-fz--kill-on-capture ()
   "Kill the node info to the kill ring after new node capture."
@@ -536,24 +593,29 @@ DESC are passed from the hook and for the node being inserted."
       (when tags
         (insert (format " :%s:" (string-join tags ":")))))))
 
-;;; Public functions
+;;; Public Functions
 
-(cl-defun org-roam-fz-master-index-node-visit ()
-  "Visit the master index note for the active zettelkasten.
-When the link to the current note exists in the master index note, the function
-jumps to it."
-  (interactive)
-  (if-let* ((node (and org-roam-fz-master-index-node-id
-                       (org-roam-node-from-id
-                        org-roam-fz-master-index-node-id)))
-            (this-node (org-roam-node-at-point)))
+(cl-defun org-roam-fz-index-node-visit (&optional _arg)
+  "Visit the index note for the current zettelkasten.
+If exists, the command jumps to the first link pointing to the current note.
+
+With the prefix argument, the command will prompt for a zettelkasten."
+  (interactive "P")
+  (if-let* ((this-node (org-roam-node-at-point))
+            (index-id
+             (let* ((zk (pcase _arg
+                          ('(4) (org-roam-fz-zettelkastens--choose))
+                          (_ org-roam-fz-zk)))
+                    (props (cdr (assoc zk org-roam-fz-zettelkastens))))
+               (alist-get 'index-id props)))
+            (index-node (org-roam-node-from-id index-id)))
       (progn
-        (org-roam-node-visit node)
+        (org-roam-node-visit index-node)
         (when-let* ((pattern (format "\\[\\[id:%s\\]\\(\\[[^]]+\\]\\)?\\]"
                                      (org-roam-node-id this-node))))
           (goto-char (point-min))
           (re-search-forward pattern nil t)))
-    (message "Master index node for this node not found")))
+    (warn "Index node not found")))
 
 (cl-defun org-roam-fz-refresh-link ()
   "Refresh hyperlink at point with node title."
@@ -616,11 +678,11 @@ the changes, perform buffer save separately."
 (defun org-roam-fz-import--change-id (old-id new-id)
   "Replace all instances of OLD-ID with NEW-ID in `org-roam' files."
   (if-let* ((node (org-roam-node-from-id old-id)))
-      (let ((buffer (find-buffer-visiting (org-roam-node-file node)))
+      (let ((buffer (progn (org-roam-node-visit node) (current-buffer)))
+            ;; TODO(2025-09-02): The help for `org-roam-node-visit' says it
+            ;; returns the buffer, but it doesn't. Send a fix?
             buffers)
-        ;; Update the ID of the current node:
-        (with-current-buffer buffer
-          (org-entry-put (point-min) "ID" new-id))
+        (org-entry-put node "ID" new-id)
 
         ;; Update the IDs found in backlinks:
         (setq buffers (append (org-roam-fz-import--replace-id old-id new-id)
@@ -639,21 +701,8 @@ the changes, perform buffer save separately."
               (org-roam-db-update-file (buffer-file-name buffer))))))
     (warn "Node with ID %s does not exit" old-id)))
 
-(defcustom org-roam-fz-zettelkastens nil
-  "The alist mapping a zettelkasten to the path for its containing directory."
-  :type '(repeat (cons string string))
-  :group 'org-roam-fz)
-
-(defun org-roam-fz-zettelkastens--choose (&optional prompt)
-  "Choose a zettelkasten from `org-roam-fz-zettelkastens'.
-Provide PROMPT string to override the default prompt message."
-  (cdr (assoc-string
-        (completing-read (or prompt "Choose a zettelkasten: ")
-                         (mapcar #'car org-roam-fz-zettelkastens) nil t)
-        org-roam-fz-zettelkastens)))
-
-(defun org-roam-fz-move-note (&optional node dir-zk)
-  "Move NODE to the zettelkasten at directory DIR-ZK."
+(defun org-roam-fz-move-note (&optional node zk)
+  "Move NODE to the zettelkasten ZK."
   (interactive (list (org-roam-node-at-point)
                      (org-roam-fz-zettelkastens--choose)))
   (if-let* ((id (org-roam-node-id node))
@@ -661,7 +710,8 @@ Provide PROMPT string to override the default prompt message."
             (file (org-roam-node-file node))
             (parent-dir (file-name-directory file)))
       (let* ((fid-as-str (org-roam-fz-fid--render fid 'full))
-             (new-parent (file-name-as-directory (expand-file-name dir-zk)))
+             (new-parent (file-name-as-directory
+                          (org-roam-fz-zk-dir zk)))
              (new-file (file-name-concat new-parent
                                          fid-as-str
                                          (file-name-nondirectory file))))
@@ -692,98 +742,119 @@ Provide PROMPT string to override the default prompt message."
   "A hook runs after `org-roam-fz-import-note'.
 The hook takes the import node as an argument.")
 
-(defun org-roam-fz-pick-available-fid ()
-  "Pick a free fID in the current zettelkasten."
-  (interactive)
+(defun org-roam-fz-pick-available-fid (&optional zk)
+  "Pick a free fID in the zettelkasten ZK."
+  (interactive (list (org-roam-fz-zettelkastens--choose)))
   (let ((prompt
          (format "Pick (n)ew, (r)elated, (f)ollow-up fID in '%s' or (q)uit: "
-                 org-roam-fz-zk))
+                 zk))
         (choices '(?n ?r ?f ?q))
-        resp)
+        resp result)
     ;; This while loop is to work around the issue of `read-char-choice'
     ;; accepting a non-CHARS character while input method is active.
     (while (not (member resp choices))
       (setq resp (read-char-choice prompt choices)))
     (unless (eq resp ?q)
-      (if (eq resp ?n)
-          (org-roam-fz-fid--new)
-        (when-let*
-            ((node (org-roam-node-read
-                    nil
-                    (lambda (node)
-                      (when-let* ((id (org-roam-node-id node)))
-                        (and (org-roam-fz-fid--string-parsable-p id)
-                             (equal (org-roam-fz-fid--string-parse-zk id)
-                                    org-roam-fz-zk))))))
-             (id (org-roam-fz-fid-make (org-roam-node-id node))))
-          (pcase resp
-            (?f (org-roam-fz-fid--follow-up id))
-            (?r (org-roam-fz-fid--related id))))))))
+      (setq result
+            (if (eq resp ?n)
+                (org-roam-fz-fid--new zk)
+              (when-let*
+                  ((node (org-roam-node-read
+                          nil
+                          (lambda (node)
+                            (when-let* ((id (org-roam-node-id node)))
+                              (and (org-roam-fz-fid--string-parsable-p id)
+                                   (equal (org-roam-fz-fid--string-parse-zk id)
+                                          (symbol-name zk)))))))
+                   (id (org-roam-fz-fid-make (org-roam-node-id node))))
+                (pcase resp
+                  (?f (org-roam-fz-fid--follow-up id))
+                  (?r (org-roam-fz-fid--related id))))))
+      (message "r %s" result)
+      result)))
 
-(defun org-roam-fz-import-note (dir-zk)
-  "Import the note at point into the zettelkasten at directory DIR-ZK.
+(defun org-roam-fz--zettelkasten-env (zk)
+  "TBD."
+  ;; (interactive (list (cdr (org-roam-fz-zettelkastens--choose))))
+  (with-temp-buffer
+    (setq default-directory
+          (org-roam-fz-zk-dir--expand
+           (alist-get 'zk-dir (alist-get zk org-roam-fz-zettelkastens))))
+    (org-mode)
+    (condition-case err
+        (progn
+          (hack-dir-local-variables-non-file-buffer)
+          (list :zk org-roam-fz-zk :target-filename org-roam-fz-target-filename))
+      (error (message "Error: %s" err)))))
+
+(defun org-roam-fz-import-note (node zk)
+  "Import NODE into the zettelkasten ZK.
 This function goes through the following steps:
 
-  1. Prompt the user for a zettelkasten directory
+  1. Prompt the user for a zettelkasten
   2. Pick a new Folgezettel ID (new, related, or follow-up)
   3. Replace existing backlinks with the new fID
   4. Move the note to the directory picked in (1)
 
 The user will be prompted a few times for input along the way."
-  (interactive (list (org-roam-fz-zettelkastens--choose)))
-  (let ((dir-zk (expand-file-name dir-zk))
-        (node (save-excursion
-                (goto-char (point-min)) (org-roam-node-at-point)))
-        zk fid)
+  (interactive (list (org-roam-node-at-point)
+                     (org-roam-fz-zettelkastens--choose)))
+  (let ((dir-zk (org-roam-fz-zk-dir zk)) fid)
     (unless (file-directory-p dir-zk)
       (user-error "Error: %s is not a valid directory" dir-zk))
 
     ;; Set the name of target zettelkasten to `zk':
-    (with-temp-buffer
-      (setq default-directory dir-zk)
-      (org-mode)
-      (condition-case err
-          (progn
-            (hack-dir-local-variables-non-file-buffer)
-            (setq zk org-roam-fz-zk))
-        (error (message "Error: %s" err))))
+    ;; (let ((target-env (org-roam-fz--zettelkasten-env zk)))
+    ;;   (setq target-filename (plist-get target-env :target-filename)))
 
     ;; Generate the fID:
-    (setq fid (let ((org-roam-fz-zk zk)) (org-roam-fz-pick-available-fid)))
+    (setq fid (org-roam-fz-pick-available-fid zk))
     (when (null fid)
       (error "Cannot generate fID"))
+
+    ;; At this point, we have the target zk and the new fid both set.
 
     (let ((old-id (org-roam-node-id node))
           (new-id (org-roam-fz-fid--render fid 'full)))
       (org-roam-fz-import--change-id old-id new-id)
 
-      (setq node (org-roam-node-from-id new-id))
-      (org-roam-fz-move-note node dir-zk)
+      (let* ((node (org-roam-node-from-id new-id))
+             (level (org-roam-node-level node)))
+        (if (> level 0)
+            (let ((org-roam-extract-new-file-path
+                   (file-name-concat (org-roam-fz-zk-dir zk) org-roam-fz-target-filename))
+                  (org-roam-fz-zk zk))
+              ;; TODO(2025-09-02): Want to copy files (possibly just ones
+              ;; relevant to the extracted subtree) to the target directory.
+              (with-current-buffer
+                  ;; `org-roam-node-visit', despite what the docstring says,
+                  ;; does not return the visited buffer.
+                  (progn (org-roam-node-visit node) (current-buffer))
+                (org-roam-extract-subtree)))
+          (org-roam-fz-move-note node zk)))
 
-      (setq node (org-roam-node-from-id new-id))
-      (run-hook-with-args 'org-roam-fz-after-import-note-hook node))))
+      (let ((node (org-roam-node-from-id new-id)))
+        (run-hook-with-args 'org-roam-fz-after-import-note-hook node)))))
 
 (defun org-roam-fz-change-fid ()
   "Change fID of the current node."
   (interactive)
   (if-let* ((node (save-excursion
                     (goto-char (point-min)) (org-roam-node-at-point)))
-            (fid (org-roam-fz-pick-available-fid))
+            (fid (org-roam-fz-pick-available-fid org-roam-fz-zk))
             (old-id (org-roam-node-id node))
             (new-id (org-roam-fz-fid--render fid 'full)))
       (progn
         (org-roam-fz-import--change-id old-id new-id)
-        (org-roam-fz-move-note (org-roam-node-from-id new-id)
-                               (cdr (assoc-string
-                                     org-roam-fz-zk
-                                     org-roam-fz-zettelkastens))))
+        (org-roam-fz-move-note (org-roam-node-from-id new-id) org-roam-fz-zk))
     (error "Cannot generate fID")))
 
-;;; Define minor mode
+;;; Define Minor Mode
 
 (defun org-roam-fz--activate ()
   "Activate the minor mode."
   ;; TODO: Use `before/after-change-functions'?
+  (add-hook 'hack-local-variables-hook #'org-roam-fz-capt-bind)
   (add-hook 'org-roam-post-node-insert-hook #'org-roam-fz--post-insert-proc)
   (add-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (add-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
@@ -799,6 +870,7 @@ The user will be prompted a few times for input along the way."
   (remove-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (remove-hook 'after-change-major-mode-hook #'org-roam-fz-overlays-refresh)
   (remove-hook 'org-roam-post-node-insert-hook #'org-roam-fz--post-insert-proc)
+  (remove-hook 'hack-local-variables-hook #'org-roam-fz-capt-bind)
   (unload-feature 'org-roam-fz) ; remove symbols based on feature
   (unintern 'org-roam-node-fid)) ; remove ones still left after unload
 
@@ -809,7 +881,7 @@ The user will be prompted a few times for input along the way."
   :lighter "org-roam-fz-mode"
   :keymap (let ((map (make-sparse-keymap)))
             (define-key map (kbd "C-c C-S-l") #'org-roam-fz-refresh-link)
-            (define-key map (kbd "C-c C-i") #'org-roam-fz-master-index-node-visit)
+            (define-key map (kbd "C-c C-i") #'org-roam-fz-index-node-visit)
             map)
   (if org-roam-fz-mode (org-roam-fz--activate) (org-roam-fz--deactivate)))
 

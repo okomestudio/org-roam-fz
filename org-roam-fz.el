@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.10.2
+;; Version: 0.10.3
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -616,11 +616,13 @@ the changes, perform buffer save separately."
 (defun org-roam-fz-import--change-id (old-id new-id)
   "Replace all instances of OLD-ID with NEW-ID in `org-roam' files."
   (if-let* ((node (org-roam-node-from-id old-id)))
-      (let ((buffer (find-buffer-visiting (org-roam-node-file node)))
+      (let ((buffer (progn (org-roam-node-visit node) (current-buffer)))
+            ;; TODO(2025-09-02): The help for `org-roam-node-visit' says it
+            ;; returns the buffer, but it doesn't. Send a fix?
             buffers)
         ;; Update the ID of the current node:
         (with-current-buffer buffer
-          (org-entry-put (point-min) "ID" new-id))
+          (org-entry-put (point) "ID" new-id))
 
         ;; Update the IDs found in backlinks:
         (setq buffers (append (org-roam-fz-import--replace-id old-id new-id)
@@ -720,8 +722,20 @@ The hook takes the import node as an argument.")
             (?f (org-roam-fz-fid--follow-up id))
             (?r (org-roam-fz-fid--related id))))))))
 
-(defun org-roam-fz-import-note (dir-zk)
-  "Import the note at point into the zettelkasten at directory DIR-ZK.
+(defun org-roam-fz--zettelkasten-env (dir-zk)
+  "TBD."
+  (interactive (list (org-roam-fz-zettelkastens--choose)))
+  (with-temp-buffer
+    (setq default-directory dir-zk)
+    (org-mode)
+    (condition-case err
+        (progn
+          (hack-dir-local-variables-non-file-buffer)
+          (list :zk org-roam-fz-zk :target-filename org-roam-fz-target-filename))
+      (error (message "Error: %s" err)))))
+
+(defun org-roam-fz-import-note (node dir-zk)
+  "Import NODE into the zettelkasten at directory DIR-ZK.
 This function goes through the following steps:
 
   1. Prompt the user for a zettelkasten directory
@@ -730,38 +744,42 @@ This function goes through the following steps:
   4. Move the note to the directory picked in (1)
 
 The user will be prompted a few times for input along the way."
-  (interactive (list (org-roam-fz-zettelkastens--choose)))
-  (let ((dir-zk (expand-file-name dir-zk))
-        (node (save-excursion
-                (goto-char (point-min)) (org-roam-node-at-point)))
-        zk fid)
+  (interactive (list (org-roam-node-at-point)
+                     (org-roam-fz-zettelkastens--choose)))
+  (let ((dir-zk (expand-file-name dir-zk)) zk target-filename fid)
     (unless (file-directory-p dir-zk)
       (user-error "Error: %s is not a valid directory" dir-zk))
 
     ;; Set the name of target zettelkasten to `zk':
-    (with-temp-buffer
-      (setq default-directory dir-zk)
-      (org-mode)
-      (condition-case err
-          (progn
-            (hack-dir-local-variables-non-file-buffer)
-            (setq zk org-roam-fz-zk))
-        (error (message "Error: %s" err))))
+    (let ((target-env (org-roam-fz--zettelkasten-env dir-zk)))
+      (setq zk (plist-get target-env :zk)
+            target-filename (plist-get target-env :target-filename)))
 
     ;; Generate the fID:
     (setq fid (let ((org-roam-fz-zk zk)) (org-roam-fz-pick-available-fid)))
     (when (null fid)
       (error "Cannot generate fID"))
 
+    ;; At this point, we have the target zk and the new fid both set.
+
     (let ((old-id (org-roam-node-id node))
           (new-id (org-roam-fz-fid--render fid 'full)))
       (org-roam-fz-import--change-id old-id new-id)
 
-      (setq node (org-roam-node-from-id new-id))
-      (org-roam-fz-move-note node dir-zk)
+      (let* ((node (org-roam-node-from-id new-id))
+             (level (org-roam-node-level node)))
+        (if (> level 0)
+            (let ((org-roam-extract-new-file-path target-filename))
+              ;; TODO(2025-09-02): The node ID and properties are not properly
+              ;; transferred via the capture mechanism. Look into it.
 
-      (setq node (org-roam-node-from-id new-id))
-      (run-hook-with-args 'org-roam-fz-after-import-note-hook node))))
+              ;; TODO(2025-09-02): Want to copy files (possibly just ones
+              ;; relevant to the extracted subtree) to the target directory.
+              (call-interactively #'org-roam-extract-subtree))
+          (org-roam-fz-move-note node dir-zk)))
+
+      (let ((node (org-roam-node-from-id new-id)))
+        (run-hook-with-args 'org-roam-fz-after-import-note-hook node)))))
 
 (defun org-roam-fz-change-fid ()
   "Change fID of the current node."

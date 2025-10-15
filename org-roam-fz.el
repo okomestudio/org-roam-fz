@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.11.1
+;; Version: 0.12.1
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -266,6 +266,65 @@ Incrementing the MSD of an fID means 12.4 becomes 13.4, for example."
     (setf (org-roam-fz-fid-alnum fid) (org-roam-fz-fid--alnum-join (last comps n)))
     fid))
 
+(cl-defun org-roam-fz-fid--new (&optional zk)
+  "Find an unused new fID in the zettelkasten ZK.
+If not given, ZK defaults to `org-roam-fz-zk'."
+  (let ((fid (org-roam-fz-fid-make (format "1.1-%s" (or zk org-roam-fz-zk)))))
+    (while (org-roam-fz-fid--exists fid)
+      (setq fid (org-roam-fz-fid--msd-inc fid)))
+    fid))
+
+(cl-defun org-roam-fz-fid--follow-up (fid)
+  "Find an unused follow-up fID relative to FID."
+  (setq fid (org-roam-fz-fid--lsd-add fid))
+  (while (org-roam-fz-fid--exists fid)
+    (setq fid (org-roam-fz-fid--lsd-inc fid)))
+  fid)
+
+(cl-defun org-roam-fz-fid--related (fid)
+  "Find an unused related fID relateive to FID."
+  (setq fid (org-roam-fz-fid--msd-n fid 3))
+  (while (org-roam-fz-fid--exists fid)
+    (setq fid (org-roam-fz-fid--lsd-inc fid)))
+  fid)
+
+(cl-defun org-roam-fz-fid-at-point ()
+  "Get the fID of the Org structure at point."
+  (if (not (derived-mode-p '(org-mode))) (error "Not in org document"))
+  (let* ((elmt (org-element-context))
+         (id (or
+              ;; If the point is on an ID link, extract its value.
+              (and (org-element-type-p elmt 'link)
+                   (string= (org-element-property :type elmt) "id")
+                   (org-element-property :path elmt)))))
+    (or (and (org-roam-fz-fid--string-parsable-p id)
+             (org-roam-fz-fid-make id))
+        (let ((id (org-roam-id-at-point)))
+          (and (org-roam-fz-fid--string-parsable-p id)
+               (org-roam-fz-fid-make id))))))
+
+(cl-defun org-roam-fz-fid-get-create (&optional force)
+  "Get or create fID for the node at point.
+The function returns the ID of node at point when it exists. If ID does not
+exist, it will be created.
+
+When FORCE is non-nil, a new ID is created, even when an ID already exists for
+the node."
+  (interactive "P")
+  (let ((epom (point)))
+    (if-let* ((id (and (null force) (org-entry-get epom "ID"))))
+        id
+      (let* ((fid (if-let* ((fid (org-roam-fz-fid-make
+                                  (org-entry-get epom "ID" 'inherit))))
+                      (org-roam-fz-fid--follow-up fid)
+                    (org-roam-fz-fid--new)))
+             (id (org-roam-fz-fid--render fid 'full)))
+        (org-entry-put epom "ID" id)
+        (org-with-point-at epom
+          (org-id-add-location
+           id (or org-id-overriding-file-name
+                  (buffer-file-name (buffer-base-buffer)))))))))
+
 ;;; Overlays
 
 (defun org-roam-fz-overlays-render-fid-default (fid)
@@ -425,7 +484,7 @@ MODE is one of `new', `follow-up', and `related'."
       (let* ((fid-gen (cl-case mode
                         ('follow-up #'org-roam-fz-fid--follow-up)
                         ('related #'org-roam-fz-fid--related)))
-             (fid-at-point (org-roam-fz--fid-at-point))
+             (fid-at-point (org-roam-fz-fid-at-point))
              (node (org-roam-node-read
                     (when fid-at-point
                       (org-roam-node-title
@@ -457,43 +516,6 @@ MODE is one of `new', `follow-up', and `related'."
           (plist-put org-roam-capture--info
                      :title (org-roam-node-title capture-node)))
     (setq org-roam-capture--info (append org-roam-capture--info capture-info))))
-
-(cl-defun org-roam-fz--fid-at-point ()
-  "Get the fID of the Org structure at point."
-  (if (not (derived-mode-p '(org-mode))) (error "Not in org document"))
-  (let* ((elmt (org-element-context))
-         (id (or
-              ;; If the point is on an ID link, extract its value.
-              (and (org-element-type-p elmt 'link)
-                   (string= (org-element-property :type elmt) "id")
-                   (org-element-property :path elmt)))))
-    (or (and (org-roam-fz-fid--string-parsable-p id)
-             (org-roam-fz-fid-make id))
-        (let ((id (org-roam-id-at-point)))
-          (and (org-roam-fz-fid--string-parsable-p id)
-               (org-roam-fz-fid-make id))))))
-
-(cl-defun org-roam-fz-fid--new (&optional zk)
-  "Find an unused new fID in the zettelkasten ZK.
-If not given, ZK defaults to `org-roam-fz-zk'."
-  (let ((fid (org-roam-fz-fid-make (format "1.1-%s" (or zk org-roam-fz-zk)))))
-    (while (org-roam-fz-fid--exists fid)
-      (setq fid (org-roam-fz-fid--msd-inc fid)))
-    fid))
-
-(cl-defun org-roam-fz-fid--follow-up (fid)
-  "Find an unused follow-up fID relative to FID."
-  (setq fid (org-roam-fz-fid--lsd-add fid))
-  (while (org-roam-fz-fid--exists fid)
-    (setq fid (org-roam-fz-fid--lsd-inc fid)))
-  fid)
-
-(cl-defun org-roam-fz-fid--related (fid)
-  "Find an unused related fID relateive to FID."
-  (setq fid (org-roam-fz-fid--msd-n fid 3))
-  (while (org-roam-fz-fid--exists fid)
-    (setq fid (org-roam-fz-fid--lsd-inc fid)))
-  fid)
 
 (cl-defun org-roam-fz-capt--merge (templates)
   "Merge TEMPLATES to the buffer-local `org-roam-capture-templates'.

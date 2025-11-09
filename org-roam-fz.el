@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.12.2
+;; Version: 0.12.3
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -810,7 +810,7 @@ The hook takes the import node as an argument.")
       (error (message "Error: %s" err)))))
 
 (defun org-roam-fz-import-note (node zk)
-  "Import NODE into the zettelkasten ZK.
+  "Import NODE into zettelkasten ZK.
 This function goes through the following steps:
 
   1. Prompt the user for a zettelkasten
@@ -842,17 +842,21 @@ The user will be prompted a few times for input along the way."
 
       (let* ((node (org-roam-node-from-id new-id))
              (level (org-roam-node-level node)))
+        ;; A file-level node gets moved, while a subtree gets extracted:
         (if (> level 0)
             (let ((org-roam-extract-new-file-path
                    (file-name-concat (org-roam-fz-zk-dir zk) org-roam-fz-target-filename))
                   (org-roam-fz-zk zk))
-              ;; TODO(2025-09-02): Want to copy files (possibly just ones
-              ;; relevant to the extracted subtree) to the target directory.
+              ;; Extracting the subtree.
+
+              ;; TODO(2025-09-02): Copy files (just ones referenced within the
+              ;; subtree) to the target directory.
               (with-current-buffer
                   ;; `org-roam-node-visit', despite what the docstring says,
                   ;; does not return the visited buffer.
                   (progn (org-roam-node-visit node) (current-buffer))
-                (org-roam-extract-subtree)))
+                (org-roam-fz-extract-subtree)))
+          ;; Moving the file-level node.
           (org-roam-fz-move-note node zk)))
 
       (let ((node (org-roam-node-from-id new-id)))
@@ -880,7 +884,7 @@ The user will be prompted a few times for input along the way."
          (org-roam-extract-new-file-path
           (file-name-concat dir "${id}" "${slug}.org")))
     ;; TODO(2025-11-08): Move referenced files in the same directory.
-    (call-interactively #'org-roam-extract-subtree)))
+    (org-roam-extract-subtree)))
 
 ;;; Define Minor Mode
 

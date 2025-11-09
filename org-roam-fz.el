@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.12.1
+;; Version: 0.12.2
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -870,6 +870,17 @@ The user will be prompted a few times for input along the way."
         (org-roam-fz-import--change-id old-id new-id)
         (org-roam-fz-move-note (org-roam-node-from-id new-id) org-roam-fz-zk))
     (error "Cannot generate fID")))
+
+(defun org-roam-fz-extract-subtree ()
+  "Extract current subtree at point to a new file in current zettelkasten."
+  (interactive)
+  (let* ((dir (alist-get 'zk-dir
+                         (alist-get org-roam-fz-zk
+                                    org-roam-fz-zettelkastens)))
+         (org-roam-extract-new-file-path
+          (file-name-concat dir "${id}" "${slug}.org")))
+    ;; TODO(2025-11-08): Move referenced files in the same directory.
+    (call-interactively #'org-roam-extract-subtree)))
 
 ;;; Define Minor Mode
 

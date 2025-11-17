@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.12.3
+;; Version: 0.12.4
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -282,11 +282,14 @@ If not given, ZK defaults to `org-roam-fz-zk'."
   fid)
 
 (cl-defun org-roam-fz-fid--related (fid)
-  "Find an unused related fID relateive to FID."
-  (setq fid (org-roam-fz-fid--msd-n fid 3))
-  (while (org-roam-fz-fid--exists fid)
-    (setq fid (org-roam-fz-fid--lsd-inc fid)))
-  fid)
+  "Find an unused related fID relative to FID."
+  (let* ((fid (org-roam-fz-fid-copy fid))
+         (comps (org-roam-fz-fid--alnum-split (org-roam-fz-fid-alnum fid))))
+    (setf (org-roam-fz-fid-alnum fid)
+          (org-roam-fz-fid--alnum-join (append (list "1") (last comps 2))))
+    (while (org-roam-fz-fid--exists fid)
+      (setq fid (org-roam-fz-fid--lsd-inc fid)))
+    fid))
 
 (cl-defun org-roam-fz-fid-at-point ()
   "Get the fID of the Org structure at point."

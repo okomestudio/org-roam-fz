@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.12.4
+;; Version: 0.12.5
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -767,6 +767,17 @@ the changes, perform buffer save separately."
   "A hook runs after `org-roam-fz-import-note'.
 The hook takes the import node as an argument.")
 
+(defun org-roam-fz--without-im (fun &rest args)
+  "Execute FUN with ARGS temporarily deactivating active input method."
+  (declare (indent 1))
+  (let ((im current-input-method))
+    (when im
+      (deactivate-input-method))
+    (unwind-protect
+        (apply fun args)
+      (when im
+        (set-input-method im)))))
+
 (defun org-roam-fz-pick-available-fid (&optional zk)
   "Pick a free fID in the zettelkasten ZK."
   (interactive (list (org-roam-fz-zettelkastens--choose)))
@@ -778,7 +789,8 @@ The hook takes the import node as an argument.")
     ;; This while loop is to work around the issue of `read-char-choice'
     ;; accepting a non-CHARS character while input method is active.
     (while (not (member resp choices))
-      (setq resp (read-char-choice prompt choices)))
+      (setq resp (org-roam-fz--without-im
+                     #'read-char-choice prompt choices)))
     (unless (eq resp ?q)
       (setq result
             (if (eq resp ?n)
@@ -795,7 +807,6 @@ The hook takes the import node as an argument.")
                 (pcase resp
                   (?f (org-roam-fz-fid--follow-up id))
                   (?r (org-roam-fz-fid--related id))))))
-      (message "r %s" result)
       result)))
 
 (defun org-roam-fz--zettelkasten-env (zk)

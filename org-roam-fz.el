@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.12.5
+;; Version: 0.12.6
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -890,15 +890,18 @@ The user will be prompted a few times for input along the way."
     (error "Cannot generate fID")))
 
 (defun org-roam-fz-extract-subtree ()
-  "Extract current subtree at point to a new file in current zettelkasten."
+  "Extract subtree at point to new location in (current) zettelkasten."
   (interactive)
-  (let* ((dir (alist-get 'zk-dir
-                         (alist-get org-roam-fz-zk
-                                    org-roam-fz-zettelkastens)))
-         (org-roam-extract-new-file-path
-          (file-name-concat dir "${id}" "${slug}.org")))
-    ;; TODO(2025-11-08): Move referenced files in the same directory.
-    (org-roam-extract-subtree)))
+  (if-let* ((zettelkasten (if (alist-get org-roam-fz-zk org-roam-fz-zettelkastens)
+                              (alist-get org-roam-fz-zk org-roam-fz-zettelkastens)
+                            (alist-get (org-roam-fz-zettelkastens--choose)
+                                       org-roam-fz-zettelkastens)))
+            (dir (alist-get 'zk-dir zettelkasten))
+            (org-roam-extract-new-file-path
+             (file-name-concat dir "${id}" "${slug}.org")))
+      ;; TODO(2025-11-08): Move referenced files in the same directory.
+      (org-roam-extract-subtree)
+    (warn "Target zettelkasten not found")))
 
 ;;; Define Minor Mode
 

@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.12.6
+;; Version: 0.12.7
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -700,6 +700,18 @@ the changes, perform buffer save separately."
         modified-buffers)
     (error "ID %s is not associated with any `org-roam' node" old-id)))
 
+(defun org-roam-fz--save-modified-buffers (buffers)
+  "Save BUFFERS if modified."
+  ;; NOTE: save-some-buffers might be simpler.
+  (dolist (buffer buffers)
+    (with-current-buffer buffer
+      (when (buffer-modified-p)
+        ;; TODO(2025-08-07): Optionally prompt the user to save buffer or not,
+        ;; using `read-char-choice'. The initial attempt failed due to the
+        ;; function not reading input character reliably.
+        (save-buffer)
+        (org-roam-db-update-file (buffer-file-name buffer))))))
+
 (defun org-roam-fz-import--change-id (old-id new-id)
   "Replace all instances of OLD-ID with NEW-ID in `org-roam' files."
   (if-let* ((node (org-roam-node-from-id old-id)))
@@ -713,17 +725,7 @@ the changes, perform buffer save separately."
         (setq buffers (append (org-roam-fz-import--replace-id old-id new-id)
                               `(,buffer)))
 
-        ;; Preview and save.
-        ;;
-        ;; NOTE: save-some-buffers might be simpler.
-        (dolist (buffer buffers)
-          (with-current-buffer buffer
-            (when (buffer-modified-p)
-              ;; TODO(2025-08-07): Optionally prompt the user to save buffer or
-              ;; not, using `read-char-choice'. The initial attempt failed due
-              ;; to the function not reading input character reliably.
-              (save-buffer)
-              (org-roam-db-update-file (buffer-file-name buffer))))))
+        (org-roam-fz--save-modified-buffers buffers))
     (warn "Node with ID %s does not exit" old-id)))
 
 (defun org-roam-fz-move-note (&optional node zk)

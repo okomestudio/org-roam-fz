@@ -4,7 +4,7 @@
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; URL: https://github.com/okomestudio/org-roam-fz
-;; Version: 0.12.7
+;; Version: 0.12.8
 ;; Keywords: org-roam, convenience
 ;; Package-Requires: ((emacs "30.1") (org-roam "20250218.1722"))
 ;;
@@ -905,6 +905,29 @@ The user will be prompted a few times for input along the way."
       (org-roam-extract-subtree)
     (warn "Target zettelkasten not found")))
 
+(defun org-roam-fz-buffer-p ()
+  "Return nil if current buffer is not managed by org-roam-fz mode.
+The function returns one or more tags in `org-roam-fz-tags-default' that are
+common to the current buffer."
+  (when (derived-mode-p '(org-mode))
+    (if-let* ((file-node (save-excursion (beginning-of-buffer)
+                                         (org-roam-node-at-point))))
+        (cl-intersection org-roam-fz-tags-default
+                         (org-roam-node-tags file-node)
+                         :test #'equal))))
+
+(defun org-roam-fz--rename-visited-file-to-title ()
+  "Rename file to title."
+  (if-let* ((_ (org-roam-fz-buffer-p))
+            (dir (file-name-directory buffer-file-name))
+            (slug (ok-string-text-to-slug (org-get-title)))
+            (file-name-nondir (format "%s.org" slug)))
+      (when (not (string= buffer-file-name (concat dir file-name-nondir)))
+        (let ((file-name
+               (read-file-name "Rename file to title slug: "
+                               nil nil nil file-name-nondir)))
+          (rename-visited-file file-name)))))
+
 ;;; Define Minor Mode
 
 (defun org-roam-fz--activate ()
@@ -916,11 +939,13 @@ The user will be prompted a few times for input along the way."
   (add-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
   (add-hook 'before-revert-hook #'org-roam-fz-overlays-remove)
   (add-hook 'org-roam-capture-new-node-hook #'org-roam-fz--kill-on-capture)
+  (add-hook 'before-save-hook #'org-roam-fz--rename-visited-file-to-title)
   (org-roam-fz-overlays-refresh))
 
 (defun org-roam-fz--deactivate ()
   "Deactivate the minor mode."
   (org-roam-fz-overlays-remove)
+  (remove-hook 'before-save-hook #'org-roam-fz--rename-visited-file-to-title)
   (remove-hook 'org-roam-capture-new-node-hook #'org-roam-fz--kill-on-capture)
   (remove-hook 'before-revert-hook #'org-roam-fz-overlays-remove)
   (remove-hook 'after-save-hook #'org-roam-fz-overlays-refresh)
